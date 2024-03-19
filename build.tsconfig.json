@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		"types": [
+			"./types/fandom.d.ts",
+			"@types/oojs",
+			"@types/oojs-ui"
+		],
+		"allowJs": false,
+		"lib": [
+			"ES2022",
+			"DOM"
+		],
+		"target": "ES5",
+		"module": "None",
+		"noImplicitThis": true,
+		"skipLibCheck": true,
+		"strictPropertyInitialization": false,
+		"outFile": "./build/temp.js"
+	},
+	"include": [
+		"build/tmp/",
+		"node_modules/@wikimedia/types-wikimedia"
+	],
+	"files": ["build/tmp/util/first.ts", "build/tmp/class/Config.ts"] // ensure these classes are loaded first
+}
