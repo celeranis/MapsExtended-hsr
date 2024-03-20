@@ -289,9 +289,9 @@ class MapSearch {
 		var emptySearch = { searchTerm: "" } as SearchInstance;
 		emptySearch.results = this.map.markers;
 		emptySearch.categories = this.map.categories;
-		emptySearch.markerMatches = [],
-			emptySearch.categoryMatches = [],
-			emptySearch.counts = {};
+		emptySearch.markerMatches = [];
+		emptySearch.categoryMatches = [];
+		emptySearch.counts = {};
 		emptySearch.isEmptySearch = true;
 
 		for (var i = 0; i < this.map.categories.length; i++)

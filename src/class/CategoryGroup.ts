@@ -34,7 +34,7 @@ class CategoryGroup {
 	constructor(group, parentGroup?: CategoryGroup) {
 		// Save some fields from the definition
 		this.isRoot = !parentGroup;
-		this.id = this.isRoot ? "root" : group.label.toLowerCase().replace(" ", "_"),
+		this.id = this.isRoot ? "root" : group.label.toLowerCase().replace(" ", "_");
 		this.label = group.label;
 		this.path = this.isRoot ? "root" : parentGroup.path + "." + this.id;
 		this.parentGroup = parentGroup;

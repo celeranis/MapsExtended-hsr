@@ -21,5 +21,6 @@
 		"build/tmp/",
 		"node_modules/@wikimedia/types-wikimedia"
 	],
+	"exclude": ["build/tmp/class/extension/MapCanvas.ts"],
 	"files": ["build/tmp/util/first.ts", "build/tmp/class/Config.ts"] // ensure these classes are loaded first
 }
