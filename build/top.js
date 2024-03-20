@@ -15,6 +15,7 @@
 */
 (function () { // <- Immediately invoked function expression to scope variables and functions to this script
 	function mx() {
+		var MAPSEXTENDED_VERSION = "/*%%HASH%%*/"
 		/*%%OUTPUT%%*/
 	}
 

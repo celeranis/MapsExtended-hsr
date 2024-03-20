@@ -719,7 +719,7 @@ class MapsExtended {
 	}
 }
 
-interface Window {
+declare interface Window {
 	dev: {
 		mapsExtended: MapsExtended
 	}

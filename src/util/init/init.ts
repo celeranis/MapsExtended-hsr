@@ -42,7 +42,7 @@ mw.hook("wikipage.content").add(function (content) {
 	}
 
 	// Otherwise if it was a regular preview, just initialize as normal
-	else if (!mapsExtended.initializing) {
+	else if (!mapsExtended.initializing && (!mapsExtended.initialized || mw.config.get('wgAction') == 'edit')) {
 		mapsExtended.init();
 	}
 });
