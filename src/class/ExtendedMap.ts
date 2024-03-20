@@ -1149,7 +1149,7 @@ class ExtendedMap {
 			this.zoomStartViewportPos = this.transformToViewportPosition(this.zoomStartTransform);
 			this.zoomStartSize = this.getElementSize(this.elements.leafletBaseImageLayer);
 			e.preventDefault();
-		};
+		}
 
 		// Record zoom position when scroll wheel is used
 		this.elements.leafletContainer.addEventListener("wheel", function (this: ExtendedMap, e) {

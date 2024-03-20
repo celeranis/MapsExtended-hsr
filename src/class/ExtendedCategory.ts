@@ -235,7 +235,7 @@ class ExtendedCategory {
 	clearAllCollected() { this.setAllCollected(false); }
 	markAllCollected() { this.setAllCollected(true); }
 
-	setAllCollected(state) {
+	setAllCollected(state: boolean) {
 		for (var j = 0; j < this.markers.length; j++)
 			this.markers[j].setMarkerCollected(state, true, false, true);
 

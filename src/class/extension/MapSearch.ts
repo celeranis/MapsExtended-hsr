@@ -276,7 +276,7 @@ class MapSearch {
 			};
 
 			this.elements.searchCategories.push(searchCategory);
-		};
+		}
 
 		// Hide the seach box if the config says to
 		if (this.map.config.enableSearch == false)
