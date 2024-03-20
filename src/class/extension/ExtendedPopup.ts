@@ -269,7 +269,7 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 
 			// Functionality for "copy embed" button
 			this.elements.popupCopyEmbedButton.addEventListener("click", function (this: ExtendedPopup, _e: InputEvent) {
-				var embed = '{{Map Embed|' + this.map.name + '|' + this.marker.id + '}}'
+				var embed = '{' + '{Map Embed|' + this.map.name + '|' + this.marker.id + '}}'
 				navigator.clipboard.writeText(embed)
 					.then(function (this: ExtendedPopup) { this.map.copySuccessBanner.show(); }.bind(this))
 					.catch(function (this: ExtendedPopup) { this.map.copyFailedBanner.show(); }.bind(this));
