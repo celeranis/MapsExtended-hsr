@@ -2,7 +2,6 @@
 // to ensure that the output code is as human-readable as possible
 // for Fandom's JavaScript review process.
 const fs = require('node:fs')
-const { spawnSync } = require('node:child_process')
 const path = require('node:path')
 
 if (fs.existsSync('./build/tmp/')) {

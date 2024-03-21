@@ -1,4 +1,3 @@
-declare var MAPSEXTENDED_VERSION: string
 var urlParams = new URLSearchParams(window.location.search);
 var isDebug = urlParams.get("debugMapsExtended") == "1" || localStorage.getItem("debugMapsExtended") == "1";
 var isDisabled = (urlParams.get("disableMapsExtended") == "1" || localStorage.getItem("disableMapsExtended") == "1") && urlParams.get('forceEnableFork') != '1';
@@ -15,7 +14,7 @@ else {
 if (isDisabled) // @ts-ignore: this will be output into a function body
 	return;
 
-console.log("Loaded MapsExtended.js (version " + MAPSEXTENDED_VERSION.substring(0, 8) + (isDebug ? ", DEBUG MODE)" : ")") + " (location is " + window.location + ")");
+console.log("Loaded MapsExtended.js (version /*%%VERSION%%*/" + (isDebug ? ", DEBUG MODE)" : ")") + " (location is " + window.location + ")");
 
 // Do not run on pages without interactive maps
 var test = document.querySelector(".interactive-maps-container");
