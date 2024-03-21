@@ -77,6 +77,7 @@ jobs:
           git add pnpm-lock.yaml
           git commit -m "update lockfile"
           git push
+        continue-on-error: true
         
       - name: Upload build
         id: upload_build
