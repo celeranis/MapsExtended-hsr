@@ -1,0 +1,87 @@
+
+name: Build
+
+permissions:
+  contents: write
+  checks: write
+  pull-requests: write
+  
+on:
+  push:
+    branches:
+      - main
+      - stable
+    paths-ignore:
+      - '**.md'
+      - '.vscode'
+  pull_request:
+    branches:
+      - main
+      - stable
+    paths-ignore:
+      - '**.md'
+      - '.vscode'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  FORCE_COLOR: true
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions'
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Checkout repository
+        id: repo_checkout
+        timeout-minutes: 5
+        uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        id: setup_pnpm
+        timeout-minutes: 5
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+      
+      - name: Setup Node.js v20
+        id: setup_node
+        timeout-minutes: 5
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: pnpm
+
+      - name: Install dependencies
+        id: deps_install
+        timeout-minutes: 5
+        run: pnpm install
+        
+      - name: Build
+        id: build
+        continue-on-error: true
+        timeout-minutes: 2
+        run: pnpm build
+        
+      - name: Commit lockfile
+        id: commit_lockfile
+        timeout-minutes: 5
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add pnpm-lock.yaml
+          git commit -m "update lockfile"
+          git push
+        
+      - name: Upload build
+        id: upload_build
+        timeout-minutes: 10
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build
+          path: dist/MapsExtended.js
