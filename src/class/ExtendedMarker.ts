@@ -142,7 +142,7 @@ class ExtendedMarker implements Fandom.MarkerData {
 		markerElement.addEventListener("dblclick", function (e) { e.stopPropagation(); });
 
 		// Add mouseenter and mouseleave events to the element
-		markerElement.addEventListener("mouseenter", function (this: ExtendedMarker, e) {
+		markerElement.addEventListener("mouseenter", function (this: ExtendedMarker, e: MouseEvent & { currentTarget: MarkerElement }) {
 			this.map.lastMarkerHovered = this;
 			this.map.lastMarkerElementHovered = this.markerElement;
 			this.map.events.onMarkerHovered.invoke({ map: this.map, marker: this, value: true, event: e });

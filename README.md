@@ -12,6 +12,7 @@ Note that some of these will need more investigation to determine whether they a
 * Disambiguation popups
 * Better multi-floor support
 * Multiple categories per marker
+* Scaling markers with zoom
 * Interactive Map Editor enhancements
 	* Edit category ids
 	* Copy marker ID/URL from editor

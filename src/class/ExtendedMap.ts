@@ -603,8 +603,9 @@ class ExtendedMap {
 
 	// Create a MutationObserver function to know when a popup is created/shown (and destroyed/hidden)
 	popupObserved(mutationList: MutationRecord[], observer: MutationObserver) {
-		if (mutationList[0].type != "childList")
+		if (mutationList[0].type != "childList" || !(mutationList[0].target instanceof HTMLDivElement)) {
 			return;
+		}
 
 		// Nodes removed
 		if (mutationList[0].removedNodes.length > 0) {

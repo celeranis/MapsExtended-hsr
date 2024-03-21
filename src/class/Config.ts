@@ -318,38 +318,33 @@ abstract class ConfigValidator {
 		if (!configInfo || !configInfo.path) return { isPresent: false };
 
 		switch (scope) {
-			case "embed":
-				{
-					fallbackConfig = window.dev.mapsExtended.embedConfigs[configMetadata._configId];
-					break;
-				}
+			case "embed": {
+				fallbackConfig = window.dev.mapsExtended.embedConfigs[configMetadata._configId];
+				break;
+			}
 
 			// Embed gets fallback from local/per-map
-			case "local":
-				{
-					fallbackConfig = window.dev.mapsExtended.localConfigs[configMetadata._configScope == "embed" ? configMetadata._configMapName : configMetadata._configId];
-					break;
-				}
+			case "local": {
+				fallbackConfig = window.dev.mapsExtended.localConfigs[configMetadata._configScope == "embed" ? configMetadata._configMapName : configMetadata._configId];
+				break;
+			}
 
 			// Local/per-map gets fallback from global
-			case "global":
-				{
-					fallbackConfig = window.dev.mapsExtended.globalConfig;
-					break;
-				}
+			case "global": {
+				fallbackConfig = window.dev.mapsExtended.globalConfig;
+				break;
+			}
 
 			// Global gets fallback from defaults
-			case "defaults":
-				{
-					fallbackConfig = window.dev.mapsExtended.defaultConfig;
-					break;
-				}
+			case "defaults": {
+				fallbackConfig = window.dev.mapsExtended.defaultConfig;
+				break;
+			}
 
 			// No more fallbacks
-			default:
-				{
-					return { isPresent: false };
-				}
+			default: {
+				return { isPresent: false };
+			}
 		}
 
 		// If we found a fallback config in the next scope, actually check whether the config contains the option
