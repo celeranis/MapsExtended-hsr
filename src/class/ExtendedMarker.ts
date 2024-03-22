@@ -165,17 +165,18 @@ class ExtendedMarker implements Fandom.MarkerData {
 	}
 
 	// Click event on marker
-	onMarkerActivated(e: MouseEvent) {
+	onMarkerActivated(event: MouseEvent) {
 		if (this.map.config.enablePopups == false) {
-			e.stopPropagation();
-			e.preventDefault();
+			event.stopPropagation();
+			event.preventDefault();
 			return;
 		}
 
 		// While using a custom popup, don't ever pass click events on to Leaflet so that the leaflet popup doesn't get recreated
 		// ! Keep this check at the top because we should always cancel it regardless !
-		if (this.map.config.useCustomPopups == true)
-			e.stopPropagation();
+		if (this.map.config.useCustomPopups == true) {
+			event.stopPropagation();
+		}
 
 		// Don't activate marker if the click was the end of a drag
 		if (this.map._invalidateLastClickEvent == true) {
@@ -184,22 +185,49 @@ class ExtendedMarker implements Fandom.MarkerData {
 			return;
 		}
 
-		if (e instanceof KeyboardEvent) {
-			if (e.key != "Enter")
-				return;
-		}
-
-		if (this.map.config.useCustomPopups == true)
-			this.popup.toggle();
-
-		// If popups should open only on hover, only non-trusted events (those initiated from scripts)
-		// should allow the popup to be opened. Discard click events that are sourced from the browser
-		if (this.map.config.openPopupsOnHover == true && e.isTrusted == true) {
-			e.stopPropagation();
+		if (event instanceof KeyboardEvent && event.key != 'Enter') {
 			return;
 		}
 
-		this.map.events.onMarkerClicked.invoke({ map: this.map, marker: this, event: e });
+		if (this.map.config.markerDisambiguationEnabled == true && event.isTrusted) {
+			// TODO: Performance testing of this method
+			var elementsOnCursor = document.elementsFromPoint(event.clientX, event.clientY)
+			var markersOnCursor: ExtendedMarker[] = []
+			for (var i = 0; i < elementsOnCursor.length; i++) {
+				var element = elementsOnCursor[i]
+				if (element.classList.contains('leaflet-marker-icon')) {
+					markersOnCursor.push((element as MarkerElement).marker)
+				}
+				
+				// elementsFromPoits returns the deepest elements in te node tree first,
+				// so once we get to the map element itself, it's safe to say that there are
+				// no other marker elements in this array
+				else if (element.classList.contains('interactive-maps__map')) {
+					break;
+				}
+			}
+			
+			// If more than one marker is on the cursor,
+			// cancel the marker activation and open the disambig popup
+			if (markersOnCursor.length > 1) {
+				this.map.showMarkerDisambiguation(markersOnCursor)
+				event.stopPropagation()
+				event.preventDefault()
+			}
+		}
+
+		if (this.map.config.useCustomPopups == true) {
+			this.popup.toggle();
+		}
+
+		// If popups should open only on hover, only non-trusted events (those initiated from scripts)
+		// should allow the popup to be opened. Discard click events that are sourced from the browser
+		if (this.map.config.openPopupsOnHover == true && event.isTrusted == true) {
+			event.stopPropagation();
+			return;
+		}
+
+		this.map.events.onMarkerClicked.invoke({ map: this.map, marker: this, event: event });
 	}
 
 	// Performs a direct comparison between a marker element and a marker definition just to be sure they are equal

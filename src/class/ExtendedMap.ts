@@ -39,6 +39,10 @@ interface PopupCollectedCheckbox extends HTMLInputElement {
 	marker: ExtendedMarker
 }
 
+interface MarkerDisambigButton extends HTMLButtonElement {
+	marker: ExtendedMarker
+}
+
 /**
 	ExtendedMap
 
@@ -125,6 +129,7 @@ class ExtendedMap {
 	elements: {
 		clearCollectedButton: HTMLAnchorElement
 		collectedMessageBanner: BannerNotification
+		disambigContainer?: TooltipElement
 		editButton: HTMLDivElement
 		filterAllCheckboxInput: HTMLInputElement
 		filterElements: NodeListOf<FilterElement>
@@ -862,6 +867,9 @@ class ExtendedMap {
 
 			// Set up collectibles
 			this.initCollectibles();
+			
+			// Set up marker disambiguations
+			this.initMarkerDisambiguations();
 		}
 		else {
 			// Changing the size of the leafet container causes it to be remade (and the fullscreen button control destroyed)
@@ -1333,12 +1341,11 @@ class ExtendedMap {
 	// This mess is to mitigate a bug that occurs after panning a map with the popup open
 	// whereby no click events after that will actually register
 	clickPositionOfElement(elem: HTMLElement) {
-		var rect = elem.getBoundingClientRect();
-		var x = rect.left + window.scrollX + (elem.clientWidth / 2);
-		var y = rect.top + window.scrollY + (elem.clientHeight / 2);
+		// var rect = elem.getBoundingClientRect();
+		// var x = rect.left + window.scrollX + (elem.clientWidth / 2);
+		// var y = rect.top + window.scrollY + (elem.clientHeight / 2);
 
-		var eventArgs =
-		{
+		var eventArgs = {
 			"bubbles": true,
 			"cancelable": true
 		};
@@ -1352,7 +1359,10 @@ class ExtendedMap {
 		elem.dispatchEvent(mouseDownEvent);
 		elem.dispatchEvent(mouseUpEvent);
 		elem.dispatchEvent(clickEvent);//click();
-		(document.activeElement as HTMLElement).blur();
+		
+		if (document.activeElement && document.activeElement instanceof HTMLElement) {
+			document.activeElement.blur()
+		}
 	}
 
 	compareMarkerAndJsonElement(markerElem: MarkerElement, markerJson: ExtendedMarker) {
@@ -1925,13 +1935,15 @@ class ExtendedMap {
 		}.bind(this));
 	}
 
-	showTooltipForMarker(marker: ExtendedMarker) {
+	showTooltipForMarker(marker: ExtendedMarker, onlyZindex?: boolean) {
 		this.isTooltipShown = true;
 		this.tooltipMarker = marker;
 		var tooltipElement = this.elements.tooltipElement;
 
 		// Show the marker on top of everything else
 		marker.markerElement.style.zIndex = (marker.order + this.markers.length).toString();
+		
+		if (onlyZindex) return
 
 		// Set the content of the tooltip
 		tooltipElement.textContent = marker.popup.title;
@@ -2888,5 +2900,128 @@ class ExtendedMap {
 			e.target.classList.toggle("can-scroll-up", scroll > 0.02);
 			e.target.classList.toggle("can-scroll-down", scroll < 0.98);
 		}, 150), { passive: true });
+	}
+	
+	// Marker Disambiguation
+	
+	disambigActive?: boolean
+	
+	initMarkerDisambiguations() {
+		// Cancel if this feature is disabled
+		if (!this.config.markerDisambiguationEnabled) {
+			return;
+		}
+		
+		var disambigContainer = document.createElement("div") as TooltipElement;
+		disambigContainer.className = "mapsExtended_disambigContainer leaflet-zoom-animated leaflet-tooltip-left";
+		this.elements.disambigContainer = disambigContainer;
+
+		// Hide when a popup is opened
+		this.events.onPopupShown.subscribe(this.hideMarkerDisambiguation.bind(this));
+		
+		// Hide when the user clicks the map
+		this.events.onMapClicked.subscribe(function(this: ExtendedMap, event: EventArgs.MapClicked) {
+			if (!event.wasDragging && event.isOnBackground) {
+				this.hideMarkerDisambiguation()
+			}
+		}.bind(this));
+
+		disambigContainer.addEventListener('click', function (this: ExtendedMap, event: MouseEvent & { target: HTMLElement }) {
+			var button = event.target.closest('button.mapsExtended_disambigChoice') as MarkerDisambigButton
+			if (button) {
+				button.marker.markerElement.click()
+				this.hideMarkerDisambiguation()
+				event.stopPropagation()
+				event.preventDefault()
+			}
+		}.bind(this))
+		
+		disambigContainer.addEventListener('mouseover', function (event: MouseEvent & { target: HTMLDivElement }) {
+			var button = event.target.closest('button.mapsExtended_disambigChoice') as MarkerDisambigButton
+			if (button) {
+				button.marker.map.showTooltipForMarker(button.marker, true)
+			}
+		})
+
+		disambigContainer.addEventListener('mouseout', function (event: MouseEvent & { target: HTMLDivElement }) {
+			var button = event.target.closest('button.mapsExtended_disambigChoice') as MarkerDisambigButton
+			if (button) {
+				button.marker.map.hideTooltip()
+			}
+		})
+		
+		// Hide when the map is zoomed
+		this.events.onMapZoomed.subscribe(this.hideMarkerDisambiguation.bind(this))
+	}
+	
+	showMarkerDisambiguation(markers: ExtendedMarker[]) {
+		if (markers.length == 0) {
+			this.hideMarkerDisambiguation();
+			return;
+		}
+		
+		var buttons: HTMLButtonElement[] = []
+		var firstMarker = markers[0]
+		
+		for (var i = 0; i < markers.length; i++) {
+			var marker = markers[i];
+			
+			var button = document.createElement('button') as MarkerDisambigButton
+			button.classList.add('mapsExtended_disambigChoice')
+			button.marker = marker
+			
+			var icon = document.createElement('span')
+			icon.classList.add('mapsExtended_disambigChoice-icon')
+			
+			var iconImg = marker.markerElement.querySelector('img').cloneNode(true) as HTMLImageElement
+			iconImg.width = 18
+			
+			var buttonLabel = document.createElement('span')
+			buttonLabel.classList.add('mapsExtended_disambigChoice-label')
+			buttonLabel.textContent = marker.name
+			
+			icon.append(iconImg)
+			button.append(icon, buttonLabel)
+			
+			buttons.push(button)
+		}
+		
+		var disambigContainer = this.elements.disambigContainer;
+		
+		disambigContainer.replaceChildren(...buttons)
+		this.elements.leafletTooltipPane.appendChild(disambigContainer)
+
+		// Change whether the tooltip is shown on the left or right side of the marker depending
+		// on the marker's position relative to the viewport.
+		// Markers on the right side of the viewport will show a tooltip on the left and vice versa
+		var isShownOnLeftSide = firstMarker.getViewportMarkerPosition()[0] > this.getViewportSize()[0] / 2;
+		var isShownOnTop = firstMarker.getViewportMarkerPosition()[1] > this.getViewportSize()[1] / 2;
+
+		disambigContainer.classList.toggle("leaflet-tooltip-left", isShownOnLeftSide);
+		disambigContainer.classList.toggle("leaflet-tooltip-right", !isShownOnLeftSide);
+
+		var localTransform = "translate(" + (isShownOnLeftSide ? "-100%" : "0") + ", " + (isShownOnTop ? '-100%' : '0') + ")";
+		
+		disambigContainer.localTransform = localTransform
+		disambigContainer.style.transform = firstMarker.markerElement.style.transform + " " + localTransform;
+		
+		// focus the first button for easy keyboard navigation
+		buttons[0].focus()
+		
+		this.disambigActive = true
+		this.hideTooltip()
+		
+		this.markers.forEach(function(marker) {
+			if (marker.popup.isPopupShown()) {
+				marker.popup.hide()
+			}
+		})
+	}
+	
+	hideMarkerDisambiguation() {
+		if (!this.disambigActive) return
+		this.disambigActive = false
+		this.elements.disambigContainer.replaceChildren()
+		this.elements.disambigContainer.remove()
 	}
 }

@@ -1,6 +1,6 @@
 var urlParams = new URLSearchParams(window.location.search);
 var isDebug = urlParams.get("debugMapsExtended") == "1" || localStorage.getItem("debugMapsExtended") == "1";
-var isDisabled = (urlParams.get("disableMapsExtended") == "1" || localStorage.getItem("disableMapsExtended") == "1") && urlParams.get('forceEnableFork') != '1';
+var isDisabled = (urlParams.get("disableMapsExtended") == "1" || localStorage.getItem("disableMapsExtended") == "1") && urlParams.get('forceEnableFork') != '/*%%VERSION%%*/';
 
 if (isDebug) {
 	var log = console.log.bind(window.console) as typeof console.log;

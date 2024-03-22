@@ -14,7 +14,7 @@ let version = `${package.version}-${hash.substring(0, 8)}`
 let finalOutput = template
 	.replace('/*%%OUTPUT%%*/', compilerOutput)
 	.replaceAll('//%%EMPTYLINE%%//', '')
-	.replaceAll('/*%%HASH%%*/', version)
+	.replaceAll('/*%%VERSION%%*/', version)
 
 if (!fs.existsSync('./dist/')) {
 	fs.mkdirSync('./dist/')

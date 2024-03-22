@@ -1705,6 +1705,14 @@ var defaultConfigInfo: ConfigInfo[] = [
 		presence: false,
 		default: 2629743,
 		type: "number"
+	},
+	
+	// Other custom features
+	{
+		name: 'markerDisambiguationEnabled',
+		presence: false,
+		default: true,
+		type: 'boolean'
 	}
 ];
 
@@ -1878,4 +1886,7 @@ interface Config extends ConfigMetadata {
 	collectibleCategories: string[]
 	enableCollectedAllNotification: boolean
 	collectibleExpiryTime: number
+	
+	// Other custom features
+	markerDisambiguationEnabled: boolean
 }

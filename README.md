@@ -6,10 +6,10 @@ A fork of the [MapsExtended](https://dev.fandom.com/wiki/MapsExtended) script fo
 * "Copy ID" and "Copy Embed" actions (only when logged in)
 * Persistent category selection via localStorage
 * Split TypeScript codebase for ease of development
+* Disambiguation popups
 
 ## Planned Features
 Note that some of these will need more investigation to determine whether they are even compatible with Fandom's default Interactive Maps.
-* Disambiguation popups
 * Better multi-floor support
 * Multiple categories per marker
 * Scaling markers with zoom
