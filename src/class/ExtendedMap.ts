@@ -608,7 +608,7 @@ class ExtendedMap {
 
 	// Create a MutationObserver function to know when a popup is created/shown (and destroyed/hidden)
 	popupObserved(mutationList: MutationRecord[], observer: MutationObserver) {
-		if (mutationList[0].type != "childList" || !(mutationList[0].target instanceof HTMLDivElement)) {
+		if (mutationList[0].type != "childList") {
 			return;
 		}
 
@@ -2559,15 +2559,15 @@ class ExtendedMap {
 			var map = args.map;
 			var category = map.categoryLookup.get(marker.categoryId);
 
+			// Stop observing popup changes while we change the subtree of the popup
+			map.togglePopupObserver(false);
+			
+			// Remove any old checkboxes (this can happen with live preview)
+			var oldCheckbox = marker.popup.elements.popupContentTopContainer.querySelector(".wds-checkbox");
+			if (oldCheckbox) oldCheckbox.remove();
+
 			// Check if the marker that triggered this popup is a collectible one
 			if (category.collectible == true) {
-				// Stop observing popup changes while we change the subtree of the popup
-				map.togglePopupObserver(false);
-
-				// Remove any old checkboxes (this can happen with live preview)
-				var oldCheckbox = marker.popup.elements.popupTitle.querySelector(".wds-checkbox");
-				if (oldCheckbox) oldCheckbox.remove();
-
 				// Create checkbox container
 				var popupCollectedCheckbox = document.createElement("div");
 				popupCollectedCheckbox.className = "wds-checkbox";
@@ -2597,9 +2597,9 @@ class ExtendedMap {
 						e.currentTarget.marker.setMarkerCollected(e.currentTarget.checked, false, true, true);
 					}
 				});
-
-				map.togglePopupObserver(true);
 			}
+
+			map.togglePopupObserver(true);
 		});
 
 		// Marker clicked - Toggle collected state on control-click

@@ -256,6 +256,9 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 		// these custom options are targeted towards editors,
 		// so we'll hide them for users that aren't logged in
 		if (!mw.user.isAnon()) {
+			// Stop observing popup changes while we change the subtree of the popup
+			this.map.togglePopupObserver(false);
+			
 			this.elements.popupCopyIdButton = this.createDropdownButton('pages-small', 'Copy ID')
 
 			// Functionality for "copy id" button
@@ -274,6 +277,8 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 					.then(function (this: ExtendedPopup) { this.map.copySuccessBanner.show(); }.bind(this))
 					.catch(function (this: ExtendedPopup) { this.map.copyFailedBanner.show(); }.bind(this));
 			}.bind(this));
+			
+			this.map.toggleMarkerObserver(true)
 		}
 	}
 
