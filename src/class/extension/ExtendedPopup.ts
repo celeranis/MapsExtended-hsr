@@ -252,6 +252,15 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 		return button
 	}
 	
+	private showCopySuccess() {
+		new BannerNotification(mapsExtended.i18n.msg("copy-link-banner-success").plain(), "confirm", null, 5000).show();
+		this.hide()
+	}
+	
+	private showCopyFailed() {
+		new BannerNotification(mapsExtended.i18n.msg("copy-link-banner-failure").plain(), "error", null, 5000).show();
+	}
+	
 	createCustomDropdownEntries() {
 		// these custom options are targeted towards editors,
 		// so we'll hide them for users that aren't logged in
@@ -264,8 +273,8 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 			// Functionality for "copy id" button
 			this.elements.popupCopyIdButton.addEventListener("click", function (this: ExtendedPopup, _e: InputEvent) {
 				navigator.clipboard.writeText(this.marker.id.toString())
-					.then(function (this: ExtendedPopup) { this.map.copySuccessBanner.show(); }.bind(this))
-					.catch(function (this: ExtendedPopup) { this.map.copyFailedBanner.show(); }.bind(this));
+					.then(this.showCopySuccess.bind(this))
+					.catch(this.showCopyFailed.bind(this));
 			}.bind(this));
 
 			this.elements.popupCopyEmbedButton = this.createDropdownButton('preformat-small', 'Copy Embed')
@@ -274,8 +283,8 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 			this.elements.popupCopyEmbedButton.addEventListener("click", function (this: ExtendedPopup, _e: InputEvent) {
 				var embed = '{' + '{Map Embed|' + this.map.name + '|' + this.marker.id + '}}'
 				navigator.clipboard.writeText(embed)
-					.then(function (this: ExtendedPopup) { this.map.copySuccessBanner.show(); }.bind(this))
-					.catch(function (this: ExtendedPopup) { this.map.copyFailedBanner.show(); }.bind(this));
+					.then(this.showCopySuccess.bind(this))
+					.catch(this.showCopyFailed.bind(this));
 			}.bind(this));
 			
 			this.map.toggleMarkerObserver(true)
@@ -338,8 +347,8 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 			var markerUrl = window.location.origin + window.location.pathname + "?" + new URLSearchParams({ marker: this.marker.id });
 
 			navigator.clipboard.writeText(markerUrl)
-				.then(function (this: ExtendedPopup) { this.map.copySuccessBanner.show(); }.bind(this))
-				.catch(function (this: ExtendedPopup) { this.map.copyFailedBanner.show(); }.bind(this));
+				.then(this.showCopySuccess.bind(this))
+				.catch(this.showCopyFailed.bind(this));
 		}.bind(this));
 	}
 

@@ -225,9 +225,6 @@ class ExtendedMap {
 	};
 	
 	urlMarker?: Fandom.MarkerData
-
-	copySuccessBanner = new BannerNotification(mapsExtended.i18n.msg("copy-link-banner-success").plain(), "confirm", null, 5000);
-	copyFailedBanner = new BannerNotification(mapsExtended.i18n.msg("copy-link-banner-failure").plain(), "confirm", null, 5000);
 	
 	constructor(root: HTMLDivElement) {
 		// ID is unique to each instance
