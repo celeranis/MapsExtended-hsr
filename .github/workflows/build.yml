@@ -66,7 +66,7 @@ jobs:
         id: build
         continue-on-error: true
         timeout-minutes: 2
-        run: pnpm build
+        run: pnpm ${{ github.ref == 'ref/heads/main' && 'build-prod' || 'build' }}
         
       - name: Commit lockfile
         id: commit_lockfile

@@ -1,6 +1,6 @@
 {
 	"name": "mapsextended-hsr",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"devDependencies": {
 		"@types/oojs": "^7.0.6",
 		"@types/oojs-ui": "^0.49.0",
@@ -8,6 +8,7 @@
 		"typescript": "^5.4.3"
 	},
 	"scripts": {
-		"build": "node ./build/prebuild.js && tsc --project build.tsconfig.json && node ./build/postbuild.js"
+		"build": "node ./build/prebuild.js && tsc --project build.tsconfig.json && node ./build/postbuild.js",
+		"build-prod": "node ./build/prebuild.js && tsc --project build.tsconfig.json && node ./build/postbuild.js --prod"
 	}
 }

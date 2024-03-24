@@ -8,8 +8,12 @@ let compilerOutput = fs.readFileSync('./build/temp.js').toString()
 
 compilerOutput = compilerOutput.replaceAll('\n', '\n\t\t') // add extra indentation to account for IISE block
 
-let hash = crypto.createHash('md5').update(compilerOutput).digest('hex')
-let version = `${package.version}-${hash.substring(0, 8)}`
+let version = package.version
+
+if (!process.argv.includes('--prod')) {
+	let hash = crypto.createHash('md5').update(compilerOutput).digest('hex')
+	version += `-${hash.substring(0, 8)}`
+}
 
 let finalOutput = template
 	.replace('/*%%OUTPUT%%*/', compilerOutput)
