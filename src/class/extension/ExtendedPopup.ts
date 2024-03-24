@@ -231,9 +231,15 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 	_zoomStepId?: number
 	_zoomStepTimeoutId?: number
 	
-	createDropdownButton(icon: string, text: string): HTMLLIElement {
+	createDropdownButton(icon: string, text: string, id: string): HTMLLIElement {
+		// Prevent duplicate entries in rare cases
+		var existingElement = this.elements.popupCopyLinkButton.parentElement.querySelector('.mapsExtended_popupAction_' + id)
+		if (existingElement != null) {
+			existingElement.remove()
+		}
+		
 		var button = document.createElement('li')
-		button.classList.add('MarkerPopupActions-module_action__xeKO9')
+		button.classList.add('MarkerPopupActions-module_action__xeKO9', 'mapsExtended_popupAction_' + id)
 		
 		var iconSpan = document.createElement('span')
 		iconSpan.classList.add('MarkerPopupActions-module_actionIcon__VyVPj')
@@ -268,7 +274,7 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 			// Stop observing popup changes while we change the subtree of the popup
 			this.map.togglePopupObserver(false);
 			
-			this.elements.popupCopyIdButton = this.createDropdownButton('pages-small', 'Copy ID')
+			this.elements.popupCopyIdButton = this.createDropdownButton('pages-small', 'Copy ID', 'copyId')
 
 			// Functionality for "copy id" button
 			this.elements.popupCopyIdButton.addEventListener("click", function (this: ExtendedPopup, _e: InputEvent) {
@@ -277,7 +283,7 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 					.catch(this.showCopyFailed.bind(this));
 			}.bind(this));
 
-			this.elements.popupCopyEmbedButton = this.createDropdownButton('preformat-small', 'Copy Embed')
+			this.elements.popupCopyEmbedButton = this.createDropdownButton('preformat-small', 'Copy Embed', 'copyEmbed')
 
 			// Functionality for "copy embed" button
 			this.elements.popupCopyEmbedButton.addEventListener("click", function (this: ExtendedPopup, _e: InputEvent) {
