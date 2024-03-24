@@ -867,6 +867,11 @@ class ExtendedMap {
 			
 			// Set up marker disambiguations
 			this.initMarkerDisambiguations();
+			
+			// Start fullscreen
+			if (urlParams.get('startMapFullscreen') == '1') {
+				this.setWindowedFullscreen(true)
+			}
 		}
 		else {
 			// Changing the size of the leafet container causes it to be remade (and the fullscreen button control destroyed)
