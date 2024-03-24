@@ -701,7 +701,9 @@ class SidebarCategoryGroup {
 		}
 		else {
 			var categoryHeader = document.createElement("div");
+			categoryHeader.textContent = 'Other';
 			categoryHeader.className = "mapsExtended_sidebarCategory_header";
+			categoryHeader.style.cursor = 'default'
 			this.elements.categoryHeader = categoryHeader;
 			categoryContainer.append(categoryHeader);
 		}
@@ -743,12 +745,20 @@ class SidebarCategoryGroup {
 			this.categoryToggles.push(categoryListItem);
 		}
 
-		sidebar.elements.categorySectionBody.append(categoryContainer);
+		// if this is not the root category, add it immediately
+		if (!categoryGroup.isRoot) {
+			sidebar.elements.categorySectionBody.append(categoryContainer);
+		}
 
 		// Create subgroups
 		for (var i = 0; i < categoryGroup.subgroups.length; i++) {
 			var subgroup = categoryGroup.subgroups[i];
 			new SidebarCategoryGroup(sidebar, subgroup, oneColumn)
+		}
+		
+		// if this is the root category, add it after all the others
+		if (categoryGroup.isRoot) {
+			sidebar.elements.categorySectionBody.append(categoryContainer);
 		}
 
 		// This is used to nest subgroups
