@@ -259,12 +259,12 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 	}
 	
 	private showCopySuccess() {
-		new BannerNotification(mapsExtended.i18n.msg("copy-link-banner-success").plain(), "confirm", null, 5000).show();
+		new BannerNotification(mapsExtended.i18n.msg("copy-link-banner-success").escape(), "confirm", null, 5000).show();
 		this.hide()
 	}
 	
 	private showCopyFailed() {
-		new BannerNotification(mapsExtended.i18n.msg("copy-link-banner-failure").plain(), "error", null, 5000).show();
+		new BannerNotification(mapsExtended.i18n.msg("copy-link-banner-failure").escape(), "error", null, 5000).show();
 	}
 	
 	createCustomDropdownEntries() {

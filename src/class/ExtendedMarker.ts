@@ -564,7 +564,7 @@ class ExtendedMarker implements Fandom.MarkerData {
 
 			// Show a banner informing the user that they've collected all markers
 			if (numCollected == numTotal) {
-				var msg = mapsExtended.i18n.msg("collected-all-banner", numCollected, numTotal, mw.html.escape(this.category.name), this.map.getMapLink()).plain();
+				var msg = mapsExtended.i18n.msg("collected-all-banner", numCollected, numTotal, mw.html.escape(this.category.name), this.map.getMapLink(null ,'wikitext')).parse();
 				this.map.elements.collectedMessageBanner.setContent(msg);
 				this.map.elements.collectedMessageBanner.show();
 			}

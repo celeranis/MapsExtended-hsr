@@ -1317,17 +1317,21 @@ class ExtendedMap {
 		return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
 	}
 
-	getMapLink(name?: string, htmlElement?: boolean) {
+	getMapLink(name?: string, linkType?: 'element' | 'wikitext') {
 		name = name || this.name;
 
-		if (htmlElement) {
+		if (linkType == 'element') {
 			var a = document.createElement(a);
 			a.href = "/wiki/" + encodeURIComponent(name);
 			a.textContent = "Map:" + name;
 			return a;
 		}
-		else
+		else if (linkType == 'wikitext') {
+			return '[[Map:' + name + ']]'
+		}
+		else {
 			return "<a href=\"/wiki/Map:" + encodeURIComponent(name) + "\">Map:" + name + "</a>";
+		}
 	}
 
 	togglePopupObserver(state?: boolean) {
@@ -2522,7 +2526,7 @@ class ExtendedMap {
 				// Create a simple OOUI modal asking the user if they really want to clear the collected state on all markers
 				OO.ui.confirm(confirmMsg).done(function (confirmed) {
 					if (confirmed) {
-						var bannerMsg = mapsExtended.i18n.msg("clear-collected-banner", map.getNumCollected(), map.getMapLink()).plain();
+						var bannerMsg = mapsExtended.i18n.msg("clear-collected-banner", map.getNumCollected(), map.getMapLink(null, 'wikitext')).parse();
 						new BannerNotification(bannerMsg, "notify", null, 5000).show();
 						map.clearCollectedStates();
 					}

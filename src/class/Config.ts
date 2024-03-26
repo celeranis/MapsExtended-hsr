@@ -821,7 +821,7 @@ abstract class ConfigValidator {
 			table.style.marginBottom = "1em";
 
 			var scopeStr = capitalizeFirstLetter(results.scope) + " config";
-			var mapLink = ExtendedMap.prototype.getMapLink(results.name, true);
+			var mapLink = ExtendedMap.prototype.getMapLink(results.name, 'element');
 			var sourceStr = " - Defined as ";
 			var sourceLink = document.createElement("a");
 
