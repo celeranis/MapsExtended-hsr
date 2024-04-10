@@ -700,12 +700,14 @@ class SidebarCategoryGroup {
 			}.bind(this));
 		}
 		else {
-			var categoryHeader = document.createElement("div");
-			categoryHeader.textContent = 'Other';
-			categoryHeader.className = "mapsExtended_sidebarCategory_header";
-			categoryHeader.style.cursor = 'default'
-			this.elements.categoryHeader = categoryHeader;
-			categoryContainer.append(categoryHeader);
+			if (categoryGroup.categories.length > 0) {
+				var categoryHeader = document.createElement("div");
+				categoryHeader.textContent = 'Other';
+				categoryHeader.className = "mapsExtended_sidebarCategory_header";
+				categoryHeader.style.cursor = 'default'
+				this.elements.categoryHeader = categoryHeader;
+				categoryContainer.append(categoryHeader);
+			}
 		}
 
 		// Create a list to hold each of the categories
