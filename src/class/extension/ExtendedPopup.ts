@@ -260,7 +260,7 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 	
 	private showCopySuccess() {
 		new BannerNotification(mapsExtended.i18n.msg("copy-link-banner-success").escape(), "confirm", null, 5000).show();
-		this.hide()
+		// this.hide()
 	}
 	
 	private showCopyFailed() {
