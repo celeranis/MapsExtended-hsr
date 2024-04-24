@@ -46,6 +46,7 @@ class MapSearch {
 	searchHistory?: SearchInstance[]
 	selectedMarker?: ExtendedMarker
 	highlightedMarker?: ExtendedMarker
+	isSearching?: boolean
 	
 	constructor(public map: ExtendedMap) {
 		this.elements = {} as MapSearch['elements']
@@ -370,14 +371,27 @@ class MapSearch {
 			// Update the label to reflect the amount of markers in the results
 			category.elements.searchResultsHeaderCount.textContent = "(" + (search.counts[category.id] || 0) + ")";
 		}
+		
+		// We're starting a search if the last search was empty and this search was not
+		var isStartingSearch = (!this.lastSearch || this.lastSearch.isEmptySearch) && !search.isEmptySearch;
+		
+		// We're ending a search if the last search was not empty and this search is
+		var isEndingSearch = (this.lastSearch && !this.lastSearch.isEmptySearch) && search.isEmptySearch;
 
+		this.isSearching = !search.isEmptySearch;
 		this.lastSearch = search;
 		this.updateSubtitle();
 
 		var t1 = performance.now();
 		log("Updating search elements took " + Math.round(t1 - t0) + " ms.");
 
-		this.map.events.onSearchPerformed.invoke({ map: this.map, search: search });
+		this.map.events.onSearchPerformed.invoke({
+			map: this.map,
+			search: search,
+			isSearching: this.isSearching,
+			isStartingSearch: isStartingSearch,
+			isEndingSearch: isEndingSearch
+		});
 	}
 
 	highlightTextWithSearchTerm(element: HTMLElement, text: string, textNormalized: string, searchTerm: string) {

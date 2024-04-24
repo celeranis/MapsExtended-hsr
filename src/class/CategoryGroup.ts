@@ -20,7 +20,9 @@ class CategoryGroup {
 	checkboxes: (HTMLInputElement & { clickHandler?: EventListener })[]
 	
 	expandedHeight: number
-	visible: boolean
+	
+	onCategoryGroupToggled: EventHandler<EventArgs.CategoryGroupToggled>
+	updateCheckedVisualStateThis: typeof this.updateCheckedVisualState
 	
 	elements: {
 		checkbox: HTMLInputElement
@@ -52,15 +54,18 @@ class CategoryGroup {
 		this.flattenedGroups = {};
 		this.checkboxes = [];
 		this.elements = (this.elements || {}) as CategoryGroup['elements'];
+		
+		this.onCategoryGroupToggled = new EventHandler();
+		
+		this.updateCheckedVisualStateThis = this.updateCheckedVisualState.bind(this);
 
 		if (this.isRoot) {
 			// Set the initial maxHeight on all collapsible elements as soon as the filters dropdown is opened
 			// This is because the elements are created when the dropdown is hidden, and so the heights aren't
 			// calculated/valid isn't set until the element is first displayed and its height is determined
-			this.map.elements.filtersDropdownButton.addEventListener("mouseenter", 
-				(function(this: CategoryGroup) {
-					this.setInitialHeight()
-				}).bind(this), { once: true });
+			this.map.elements.filtersDropdownButton.addEventListener("mouseenter", function(this: CategoryGroup) {
+				this.setInitialHeight()
+			}.bind(this), { once: true });
 		}
 
 		var groupElem = document.createElement("div");
@@ -73,16 +78,16 @@ class CategoryGroup {
 		// Create the checkbox elements
 		var checkboxId = this.map.id + "__checkbox-categoryGroup-" + this.path;
 
-		var checkboxRoot = document.createElement("div");
-		checkboxRoot.className = "wds-checkbox";
+		// var checkboxRoot = document.createElement("div");
+		// checkboxRoot.className = "wds-checkbox";
 
-		var checkboxInput = document.createElement("input");
-		checkboxInput.setAttribute("type", "checkbox");
-		checkboxInput.setAttribute("name", checkboxId);
-		checkboxInput.setAttribute("id", checkboxId);
+		// var checkboxInput = document.createElement("input");
+		// checkboxInput.setAttribute("type", "checkbox");
+		// checkboxInput.setAttribute("name", checkboxId);
+		// checkboxInput.setAttribute("id", checkboxId);
 
-		var checkboxLabel = document.createElement("label");
-		checkboxLabel.setAttribute("for", checkboxId);
+		// var checkboxLabel = document.createElement("label");
+		// checkboxLabel.setAttribute("for", checkboxId);
 
 		// Create a header label element
 		var headerLabel = document.createElement("div");
@@ -91,21 +96,22 @@ class CategoryGroup {
 
 		// Create header dropdown arrow element (to indicate collapsed state)
 		var headerArrow = document.createElement("div");
+		headerArrow.innerHTML = headerArrow.innerHTML = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 12 12\"><path fill=\"currentColor\" fill-rule=\"evenodd\" d=\"M11.707 3.293a.999.999 0 00-1.414 0L6 7.586 1.707 3.293A.999.999 0 10.293 4.707l5 5a.997.997 0 001.414 0l5-5a.999.999 0 000-1.414\"></path></svg>";
 		headerArrow.className = "mapsExtended_categoryGroupHeaderArrow";
-		headerArrow.textContent = this.collapsed == true ? "▲" : "▼";
+		headerArrow.classList.toggle("mapsExtended_categoryGroupHeaderArrow--collapsed", this.collapsed);
+		// headerArrow.textContent = this.collapsed == true ? "▲" : "▼";
 		headerArrow.style.display = this.collapsible == false ? "none" : "";
+		
+		var checkbox = createWdsCheckbox(checkboxId);
+		checkbox.label.appendChild(headerLabel);
+		checkbox.root.appendChild(headerArrow);
+		headerElem.appendChild(checkbox.root);
 
 		this.elements.root = groupElem;
 		this.elements.header = headerElem;
 		this.elements.headerLabel = headerLabel;
-		this.elements.checkbox = checkboxInput;
+		this.elements.checkbox = checkbox.input;
 		this.elements.headerArrow = headerArrow;
-
-		checkboxRoot.appendChild(checkboxInput);
-		checkboxRoot.appendChild(checkboxLabel);
-		checkboxLabel.appendChild(headerLabel);
-		checkboxRoot.appendChild(headerArrow);
-		headerElem.appendChild(checkboxRoot);
 
 		// Create a container element
 		var containerElem = document.createElement("div");
@@ -118,10 +124,13 @@ class CategoryGroup {
 		groupElem.appendChild(containerElem);
 
 		// Append the group as a child of its parent
-		if (this.isRoot)
-			this.map.elements.filtersDropdownList.appendChild(groupElem);
-		else
+		if (this.isRoot) {
+			var rootContainer = this.map.elements.filterCategoriesSectionContent || this.map.elements.filtersDropdownList;
+			rootContainer.appendChild(groupElem);
+		}
+		else {
 			parentGroup.elements.container.appendChild(groupElem);
+		}
 
 		// Move actual category filters into group
 		for (var i = 0; i < this.children.length; i++) {
@@ -142,37 +151,14 @@ class CategoryGroup {
 		// Events
 
 		// Click event on "parent" group checkbox
-		this.elements.checkbox.addEventListener("click", function (this: CategoryGroup, e: MouseEvent) {
-			this.visible = (e.currentTarget as HTMLInputElement).checked;
-
-			for (var i = 0; i < this.checkboxes.length; i++) {
-				// Don't bother propegating click to disabled categories
-				if (!(this.children[i] instanceof CategoryGroup)) {
-					if (this.children[i].disabled == true)
-						continue;
-				}
-
-				// Remove child listener to prevent stack overflow
-				this.checkboxes[i].removeEventListener("click", this.checkboxes[i].clickHandler);
-
-				// Can't set checked unfortunately, have to simulate a click to toggle it
-				// this also means we have to prevent the above event from being fired
-				// (hence the removeEventListener above and addEventListener below)
-				if (this.checkboxes[i].checked != this.elements.checkbox.checked)
-					this.checkboxes[i].click();
-
-				// Re-add child listener
-				this.checkboxes[i].addEventListener("click", this.checkboxes[i].clickHandler);
-			}
-
+		this.elements.checkbox.addEventListener("change", function (this: CategoryGroup, e: MouseEvent) {
+			this.visible = (e.target as HTMLInputElement).checked;
+			this.map.updateFilter()
 		}.bind(this));
 
 		// If this category group should be hidden, hide it (click all checkboxes if they are checked)
 		if (this.hidden == true) {
-			for (var i = 0; i < this.checkboxes.length; i++) {
-				if (this.checkboxes[i].checked)
-					this.checkboxes[i].click();
-			}
+			this.visible = false;
 		}
 
 		// Update the visual checked state of the group checkbox
@@ -182,24 +168,50 @@ class CategoryGroup {
 		headerArrow.addEventListener("click", function(this: CategoryGroup) {
 			var collapsed = !this.collapsed;
 			this.collapsed = collapsed;
+			
+			headerArrow.classList.toggle("mapsExtended_categoryGroupHeaderArrow--collapsed", this.collapsed);
 
 			if (collapsed == false) {
 				containerElem.style.width = "";
 				containerElem.style.maxHeight = this.expandedHeight + "px";
-				headerArrow.textContent = "▼";
+				// headerArrow.textContent = "▼";
 			}
 			else {
 				containerElem.style.maxHeight = "0px";
-				headerArrow.textContent = "▲";
+				// headerArrow.textContent = "▲";
 
 				containerElem.addEventListener("transitionend", function (e) {
 					if (e.propertyName != "max-height") return;
-					containerElem.style.width = collapsed ? "0" : "";
+					// containerElem.style.width = collapsed ? "0" : "";
 				}, { once: true });
 			}
 		}.bind(this));
+		
+		this.map.elements.filtersDropdownButton.addEventListener("mouseover", function (this: CategoryGroup, e) {
+			this.elements.container.style.width = this.collapsed ? "0" : "";
+		}.bind(this));
 	}
-	
+
+	get visible(): boolean {
+		return this.elements.checkbox.checked;
+	}
+
+	// Set visible state on the category
+	// This doesn't filter the markers, for this you need to call ExtendedMap.updateFilter
+	set visible(value: boolean) {
+		// Set checked state on checkbox (it's used as a backing field for ExtendedCategory.visible)
+		// This does not fire the "change" event
+		this.elements.checkbox.checked = value;
+		this.elements.checkbox.indeterminate = false;
+
+		// Check all child categories and CategoryGroups
+		for (var i = 0; i < this.categories.length; i++)
+			this.categories[i].visible = value;
+		for (var i = 0; i < this.subgroups.length; i++)
+			this.subgroups[i].visible = value;
+
+		this.onCategoryGroupToggled.invoke({ group: this, map: this.map, value: value });
+	}
 
 	/**
 	 * Adds an ExtendedCategory to this group
@@ -209,7 +221,8 @@ class CategoryGroup {
 		if (!this.allCategories.includes(category)) this.allCategories.push(category);
 
 		this.elements.container.appendChild(category.elements.filter);
-		this.registerCheckbox(category.elements.checkboxInput);
+		this.checkboxes.push(category.elements.checkboxInput);
+		category.onCategoryToggled.subscribe(this.updateCheckedVisualStateThis);
 
 		return category;
 	}
@@ -231,24 +244,14 @@ class CategoryGroup {
 	addSubgroupToGroup(group) {
 		var childGroup = new CategoryGroup(group, this);
 		this.subgroups.push(childGroup);
-		this.registerCheckbox(childGroup.elements.checkbox);
+		this.checkboxes.push(childGroup.elements.checkbox);
+		childGroup.onCategoryGroupToggled.subscribe(this.updateCheckedVisualStateThis);
 		this.flattenedGroups[this.id + "/" + childGroup.id] = childGroup;
 
 		for (var key in childGroup.flattenedGroups)
 			this.flattenedGroups[this.id + "/" + key] = childGroup.flattenedGroups[key];
 
 		return childGroup;
-	}
-
-	// Assigns a checkbox to this CategoryGroup, setting up some events so that it
-	// is properly updated when the category group checkbox changes, and vice versa
-	registerCheckbox(checkbox) {
-		this.checkboxes.push(checkbox);
-
-		// Updated the checked visual state when the child checkbox is clicked
-		// For each checkbox in the group, add a click event listener
-		checkbox.clickHandler = this.updateCheckedVisualState.bind(this);
-		checkbox.addEventListener("click", checkbox.clickHandler);
 	}
 
 	// Updates the checked and indeterminate state of a group, based on its children

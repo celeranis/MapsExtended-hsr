@@ -1268,6 +1268,58 @@ var defaultConfigInfo: ConfigInfo[] = [
 		type: "string",
 		validValues: ["auto", "show", "hide"]
 	},
+	
+	// Zoom layers
+	{
+		name: "zoomLayers",
+		presence: false,
+		default: [],
+		type: "array",
+		arrayType: "object",
+		children:
+			[
+				{
+					name: "zoomLayer",
+					presence: false,
+					default: undefined,
+					type: "object",
+					children:
+						[
+							{
+								name: "id",
+								presence: true,
+								type: ["string", "number"]
+							},
+							{
+								name: "minZoom",
+								presence: false,
+								default: 0,
+								type: "number"
+							},
+							{
+								name: "maxZoom",
+								presence: false,
+								default: Number.POSITIVE_INFINITY,
+								type: "number"
+							},
+							{
+								name: "categories",
+								presence: false,
+								default: [],
+								type: "array",
+								arrayType: ["string", "number"],
+							},
+							{
+								name: "markers",
+								presence: false,
+								default: [],
+								type: "array",
+								arrayType: ["string", "number"],
+							}
+						]
+				}
+			]
+	},
 
 	// Other features
 
@@ -1688,6 +1740,12 @@ var defaultConfigInfo: ConfigInfo[] = [
 	// Collectibles
 
 	{
+		name: "enableFandomCollectibles",
+		presence: false,
+		default: false,
+		type: "boolean"
+	},
+	{
 		name: "collectibleCategories",
 		presence: true,
 		default: [],
@@ -1705,6 +1763,25 @@ var defaultConfigInfo: ConfigInfo[] = [
 		presence: false,
 		default: 2629743,
 		type: "number"
+	},
+	{
+		name: "collectibleCheckboxStyle",
+		presence: false,
+		default: "mx",
+		type: "string",
+		validValues: ["mx", "fandom"]
+	},
+	{
+		name: "enableYourProgressFilter",
+		presence: false,
+		default: true,
+		type: "boolean"
+	},
+	{
+		name: "enableClearCollectedButton",
+		presence: false,
+		default: true,
+		type: "boolean"
 	},
 	
 	// Other custom features
@@ -1831,6 +1908,14 @@ declare namespace Config {
 		shadowBlur?: number
 		shadowOffset?: number[]
 	}
+	interface ZoomLayer {
+		id: string | number
+		minZoom: number
+		maxZoom: number
+		categories: (string | number)[]
+		markers: (string | number)[]
+		visible?: boolean
+	}
 }
 
 interface Config extends ConfigMetadata {
@@ -1883,9 +1968,16 @@ interface Config extends ConfigMetadata {
 	pixelsToMeters: number
 	
 	// Collectibles
+	enableFandomCollectibles: boolean
 	collectibleCategories: string[]
 	enableCollectedAllNotification: boolean
 	collectibleExpiryTime: number
+	collectibleCheckboxStyle: 'mx' | 'fandom'
+	enableYourProgressFilter: boolean
+	enableClearCollectedButton: boolean
+	
+	// Zoom layers
+	zoomLayers: Config.ZoomLayer[]
 	
 	// Other custom features
 	markerDisambiguationEnabled: boolean

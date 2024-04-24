@@ -106,3 +106,34 @@ function changeCSSRuleStyle(selector: string, property: string, value: string | 
 	if (rule != null) rule.style[property] = value;
 	return rule;
 }
+
+// Create a WDS checkbox
+// id: The ID to assign to the input
+// label: A string or HTML element to append to the label
+// Returns an object containing { root, input, label }
+function createWdsCheckbox(id: string, label?: string | Node) {
+	var checkboxRoot = document.createElement("div");
+	checkboxRoot.className = "wds-checkbox";
+
+	var checkboxInput = document.createElement("input");
+	checkboxInput.setAttribute("type", "checkbox");
+	checkboxInput.setAttribute("name", id);
+	checkboxInput.setAttribute("id", id);
+
+	var checkboxLabel = document.createElement("label");
+	checkboxLabel.setAttribute("for", id);
+
+	if (label) {
+		if (typeof label == "string") {
+			checkboxLabel.textContent = label;
+		}
+		else if (label instanceof Node) {
+			checkboxLabel.append(label);
+		}
+	}
+
+	checkboxRoot.append(checkboxInput, checkboxLabel);
+	checkboxInput.checked = true;
+
+	return { root: checkboxRoot, input: checkboxInput, label: checkboxLabel };
+}

@@ -645,25 +645,6 @@ class MapsExtended {
 		window.dev.i18n = window.dev.i18n || {};
 		window.dev.i18n.overrides = window.dev.i18n.overrides || {};
 		var overrides = window.dev.i18n.overrides["MapsExtended"] = window.dev.i18n.overrides["MapsExtended"] || {};
-		overrides["category-collected-label"] = "$1 of $2 collected";
-		overrides["clear-collected-button"] = "Clear collected";
-		overrides["clear-collected-confirm"] = "Clear collected markers?";
-		overrides["clear-collected-banner"] = "Cleared $1 collected markers on $2.";
-		overrides["collected-all-banner"] = "Congratulations! You collected all <b>$1</b> of <b>$2</b> \"$3\" markers on $4.";
-		overrides["search-placeholder"] = "Search";
-		overrides["search-hint-noresults"] = "No results found for \"$1\"";
-		overrides["search-hint-results"] = "$1 markers in $2 categories";
-		overrides["search-hint-resultsfiltered"] = "$1 markers in $2 categories ($3 filtered)";
-		overrides["fullscreen-enter-tooltip"] = "Enter fullscreen";
-		overrides["fullscreen-exit-tooltip"] = "Exit fullscreen";
-		overrides["copy-link-banner-success"] = "Copied to clipboard";
-		overrides["copy-link-banner-failure"] = "There was a problem copying the link to the clipboard";
-		overrides["sidebar-header"] = "$1 - Interactive Map";
-		overrides["sidebar-categories-header"] = "Categories";
-		overrides["sidebar-show-all-button"] = "Show All";
-		overrides["sidebar-hide-all-button"] = "Hide All";
-		overrides["sidebar-hide-tooltip"] = "Hide sidebar";
-		overrides["sidebar-show-tooltip"] = "Show sidebar";
 		console.log("i18n messages are being overridden!");
 		*/
 

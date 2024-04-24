@@ -350,6 +350,7 @@ class Sidebar {
 			for (var i = 0; i < this.map.categories.length; i++) {
 				this.map.categories[i].toggle(true);
 			}
+			this.map.updateFilter();
 		}.bind(this));
 		categoryToggleButtons.append(showAllButton);
 
@@ -360,6 +361,7 @@ class Sidebar {
 			for (var i = 0; i < this.map.categories.length; i++) {
 				this.map.categories[i].toggle(false);
 			}
+			this.map.updateFilter();
 		}.bind(this));
 		categoryToggleButtons.append(hideAllButton);
 		sidebarContent.append(categoryToggleButtons);
@@ -652,11 +654,13 @@ class SidebarCategoryGroup {
 	categories: ExtendedCategory[]
 	categoryToggles: HTMLDivElement[] = []
 	parentGroup?: CategoryGroup
+	categoryGroup?: CategoryGroup
 	
 	constructor(public sidebar: Sidebar, categoryGroup: CategoryGroup, oneColumn?: boolean) {
 		this.elements = {} as SidebarCategoryGroup['elements']
 		this.label = categoryGroup.label
 		this.categories = categoryGroup.categories
+		this.categoryGroup = categoryGroup;
 
 		sidebar.categoryGroups = sidebar.categoryGroups || [];
 		sidebar.categoryGroups.push(this);
@@ -694,9 +698,12 @@ class SidebarCategoryGroup {
 				var anyShown = this.categories.some(function (c) { return c.visible == true; });
 
 				// Perform the hiding/showing using the toggle function of ExtendedCategory
-				for (var i = 0; i < this.categories.length; i++)
+				for (var i = 0; i < this.categories.length; i++) {
 					this.categories[i].toggle(!anyShown)
+				}
 
+				this.categoryGroup.updateCheckedVisualState();
+				this.categoryGroup.map.updateFilter();
 			}.bind(this));
 		}
 		else {
@@ -733,10 +740,10 @@ class SidebarCategoryGroup {
 				categoryNumMarkers);
 
 			// Toggle specific category by clicking on item
-			categoryListItem.addEventListener("click", function (e) {
-				var item = e.currentTarget as CategoryListItem;
-				item.category.toggle();
-			});
+			categoryListItem.addEventListener("click", function (this: ExtendedCategory, e) {
+				this.toggle();
+				this.map.updateFilter();
+			}.bind(category));
 
 			// Update the visual toggle state whenever the actual category visibility changes
 			category.onCategoryToggled.subscribe(function (this: HTMLDivElement, value: boolean) {

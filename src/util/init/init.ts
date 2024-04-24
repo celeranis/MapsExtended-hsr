@@ -9,6 +9,10 @@ window.dev.mapsExtended = mapsExtended;
 
 // This hook ensures that we init again on live preview
 mw.hook("wikipage.content").add(function (content) {
+	// Ignore non-page content (includes marker popups)
+	if (!content[0].matches("#mw-content-text")) {
+		return;
+	}
 
 	// prevObject will not be undefined if this is a live preview.
 	// The issue with live preview however, is that there is no hook that fires when the content is fully loaded
@@ -42,7 +46,7 @@ mw.hook("wikipage.content").add(function (content) {
 	}
 
 	// Otherwise if it was a regular preview, just initialize as normal
-	else if (!mapsExtended.initializing && (!mapsExtended.initialized || mw.config.get('wgAction') == 'edit')) {
+	else/* if (!mapsExtended.initializing && (!mapsExtended.initialized || mw.config.get('wgAction') == 'edit'))*/ {
 		mapsExtended.init();
 	}
 });

@@ -33,7 +33,6 @@ class ExtendedCategory {
 	startHidden: boolean
 	startDisabled: boolean
 	defaultHidden: boolean
-	visible: boolean
 	disabled: boolean
 	collectible: boolean
 	
@@ -89,32 +88,46 @@ class ExtendedCategory {
 		this.startDisabled = this.hints.includes("disabled") || (Array.isArray(map.config.disabledCategories) && map.config.disabledCategories.includes(this.id));
 
 		// Categories always start visible, because we have not yet connected them to the DOM
-		this.visible = true;
+		// this.visible = true;
 
 		// Categories always start enabled, for the same reason
 		this.disabled = false;
 
-		// Set up an event that will be fired when the toggle state of this category changes
+		// Set up an event that will be fired when the toggle fte of this category changes
 		this.onCategoryToggled = new EventHandler();
 
 		this.elements = {} as ExtendedCategory['elements'];
 	}
 	
+	get visible(): boolean {
+		return this.elements.checkboxInput.checked;
+	}
+	
+	// Set visible state on the category
+	// This doesn't filter the markers, for this you need to call ExtendedMap.updateFilter
+	set visible(value: boolean) {
+		// Set checked state on checkbox (it's used as a backing field for ExtendedCategory.visible)
+		// This does not fire the "change" event
+		this.elements.checkboxInput.checked = value;
+		this.elements.checkboxInput.indeterminate = false;
+
+		// Fire events
+		this.map.events.onCategoryToggled.invoke({ map: this.map, category: this, value: value });
+		this.onCategoryToggled.invoke(value);
+	}
+	
 	toggle(value?: boolean) {
-		value = value != undefined ? value : !this.visible;
-
-		if (this.elements && this.elements.checkboxInput) {
-			// Toggle by simulating click (can't set checked directly unfortunately)
-			if (this.elements.checkboxInput.checked != value)
-				this.elements.checkboxInput.click();
-		}
-
+		value = value != null ? value : !this.visible;
 		this.visible = value;
 	}
 
 	init(filterElement: FilterElement) {
+		// Clone filter element and all its children to remove all event listeners
+		// This is easier than reconstructing the hierarchy, and more bulletproof than using hacks to remove listeners
+		this.elements.filter = filterElement.cloneNode(true) as FilterElement;
+		filterElement.replaceWith(this.elements.filter);
+		
 		// Fetch all elements from root filter
-		this.elements.filter = filterElement
 		this.elements.checkboxInput = this.elements.filter.querySelector("input");
 		this.elements.checkboxLabel = this.elements.filter.querySelector("label");
 		this.elements.categoryIcon = this.elements.checkboxLabel.querySelector(".interactive-maps__filters-marker-icon");
@@ -130,8 +143,7 @@ class ExtendedCategory {
 		// Subscribe to the change event on the checkbox input to update the visible bool, and invoke a toggled event
 		this.elements.checkboxInput.addEventListener("change", function (this: ExtendedCategory, e: InputEvent & { target: HTMLInputElement }) {
 			this.visible = e.target.checked;
-			this.map.events.onCategoryToggled.invoke({ map: this.map, category: this, value: e.target.checked });
-			this.onCategoryToggled.invoke(e.target.checked);
+			this.map.updateFilter();
 			
 			if (this.map.initialized) {
 				// save category states
@@ -186,13 +198,24 @@ class ExtendedCategory {
 		return this.collectible ? this.markers.some(function (m) { return m.collected == true; }) : false;
 	}
 
-	getNumCollected() {
+	getNumCollected(state?: boolean, excludeFiltered?: boolean) {
+		// Number collected is 0 for categories that aren't collectible
+		// or if we're filtering excluded, and this category is excluded
+		if (!this.collectible || excludeFiltered == true && this.visible == false) {
+			return 0;
+		}
+
+		// Default the collected state to count to true
+		if (state == null) {
+			state = true;
+		}
+
 		var count = 0;
-		if (!this.collectible) return count;
 
 		for (var i = 0; i < this.markers.length; i++) {
-			if (this.markers[i].collected)
+			if (this.markers[i].collected == state) {
 				count++;
+			}
 		}
 
 		return count;

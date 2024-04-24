@@ -59,7 +59,11 @@ declare namespace EventArgs {
 		/** the center position of the zoom in viewport pixel units */
 		center: Position
 		/** the type of zoom this is, typically how it was initiated. */
-		zoomType: 'box' | 'button' | 'wheel' | 'key'
+		type: 'box' | 'button' | 'wheel' | 'key'
+		/** the current state of this zoom */
+		state: 'zoomStart' | 'zoomEnd'
+		/** the direction of this zoom (in/out) */
+		direction: 'in' | 'out'
 		/** the delta scale factor that the map is zooming to */
 		scaleDelta: number
 		/** the new scale of the map after the zoom */
@@ -84,5 +88,13 @@ declare namespace EventArgs {
 	
 	interface SearchPerformed extends BaseEvent {
 		search: SearchInstance
+		isSearching: boolean
+		isStartingSearch: boolean
+		isEndingSearch: boolean
+	}
+	
+	interface CategoryGroupToggled extends BaseEvent {
+		group: CategoryGroup
+		value: boolean
 	}
 }

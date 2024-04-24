@@ -53,6 +53,14 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 		popupScrollableContent: HTMLDivElement
 		popupTipContainer: HTMLDivElement
 		popupTitle: HTMLDivElement
+		progressButton: HTMLDivElement
+		progressButtonLabel: HTMLElement
+	}
+	
+	events = {
+		onPopupShown: new EventHandler<void>(),
+		onPopupHidden: new EventHandler<void>(),
+		onPopupCreated: new EventHandler<void>()
 	}
 	
 	constructor(marker: ExtendedMarker) {
@@ -88,6 +96,7 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 		this.elements = this.elements || this.fetchPopupElements(popupElement);
 
 		this.wrapPopupImages();
+		this.createCollectibleElements();
 
 		// Process any popup changes that are pending
 		this.processPendingChanges();
@@ -139,6 +148,11 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 			if (this.marker.iconAnchor.endsWith("right"))
 				popupElement.style.marginLeft = ((this.marker.width * -0.5) + 2) + "px";
 		}
+		
+		// If the marker category is NOT collectible, remove the progress button
+		if ((!this.map.hasCollectibles || !this.marker.category.collectible) && this.elements.progressButton) {
+			this.elements.progressButton.remove();
+		}
 
 		if (this.marker.map.config.openPopupsOnHover == true) {
 			popupElement.addEventListener("mouseenter", function (this: ExtendedPopup, e) { this.stopPopupHideDelay(); }.bind(this));
@@ -149,6 +163,7 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 
 		// Invoke onPopupCreated
 		log("Popup created: " + this.marker.id);
+		this.events.onPopupCreated.invoke();
 		this.map.events.onPopupCreated.invoke({ map: this.map, marker: this.marker, popup: this });
 	}
 
@@ -184,7 +199,7 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 		customPopup.style.cssText = "opacity: 1; bottom: 0; left: -150px;";
 
 		// This is the maximum required HTML for a popup
-		customPopup.innerHTML = "<div class=\"leaflet-popup-content-wrapper\"><div class=\"leaflet-popup-content\" style=\"width: 301px;\"><div class=\"MarkerPopup-module_popup__eNi--\"><div class=\"MarkerPopup-module_content__9zoQq\"><div class=\"MarkerPopup-module_contentTopContainer__qgen9\"><div class=\"MarkerPopup-module_title__7ziRt\"><!-- Title --></div><div class=\"MarkerPopup-module_actionsContainer__q-GB8\"><div class=\"wds-dropdown MarkerPopupActions-module_actionsDropdown__Aq3A2\"><div class=\"wds-dropdown__toggle MarkerPopupActions-module_actionsDropdownToggle__R5KYk\" role=\"button\"><span></span><svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 18 18\" width=\"1em\" height=\"1em\" class=\"wds-icon wds-icon-small wds-dropdown__toggle-chevron\"><defs><path id=\"prefix__more-small\" d=\"M9 5c1.103 0 2-.896 2-2s-.897-2-2-2-2 .896-2 2 .897 2 2 2m0 8c-1.103 0-2 .896-2 2s.897 2 2 2 2-.896 2-2-.897-2-2-2m0-6c-1.103 0-2 .896-2 2s.897 2 2 2 2-.896 2-2-.897-2-2-2\"></path></defs><use fill-rule=\"evenodd\" xlink:href=\"#prefix__more-small\"></use></svg></div><div class=\"wds-dropdown__content wds-is-not-scrollable\"><ul class=\"MarkerPopupActions-module_dropdownContent__GYl-7\"><li class=\"MarkerPopupActions-module_action__xeKO9\" data-testid=\"copy-link-marker-action\"><span class=\"MarkerPopupActions-module_actionIcon__VyVPj\"><svg class=\"wds-icon wds-icon-small\"><use xlink:href=\"#wds-icons-link-small\"></use></svg></span><span class=\"MarkerPopupActions-module_actionLabel__yEa0-\">Copy link</span></li><li class=\"MarkerPopupActions-module_action__xeKO9\" data-testid=\"marker-report-action\"><span class=\"MarkerPopupActions-module_actionIcon__VyVPj\"><svg class=\"wds-icon wds-icon-small\"><use xlink:href=\"#wds-icons-alert-small\"></use></svg></span><span class=\"MarkerPopupActions-module_actionLabel__yEa0-\">Report Marker</span></li></ul></div></div></div></div><div class=\"MarkerPopup-module_scrollableContent__0N5PS\"><div class=\"MarkerPopup-module_description__fKuSE\"><div class=\"page-content MarkerPopup-module_descriptionContent__-ypRG\"><!-- Description --></div></div><div class=\"MarkerPopup-module_imageWrapper__HuaF2\"><img class=\"MarkerPopup-module_image__7I5s4\"></div></div><div class=\"MarkerPopup-module_link__f59Lh\"><svg class=\"wds-icon wds-icon-tiny MarkerPopup-module_linkIcon__q3Rbd\"><use xlink:href=\"#wds-icons-link-tiny\"></use></svg><a href=\"<!-- Link url -->\" target=\"_blank\" rel=\"noopener noreferrer\"><!-- Link label --></a></div></div></div></div></div><div class=\"leaflet-popup-tip-container\"><div class=\"leaflet-popup-tip\"></div></div>";
+		customPopup.innerHTML = customPopup.innerHTML = "<div class=\"leaflet-popup-content-wrapper\"><div class=\"leaflet-popup-content\" style=\"width: 301px;\"><div class=\"MarkerPopup-module_popup__eNi--\"><div class=\"MarkerPopup-module_content__9zoQq\"><div class=\"MarkerPopup-module_contentTopContainer__qgen9\"><div class=\"MarkerPopup-module_title__7ziRt\"><\/div><div class=\"MarkerPopup-module_actionsContainer__q-GB8\"><div class=\"wds-dropdown MarkerPopupActions-module_actionsDropdown__Aq3A2\"><div class=\"wds-dropdown__toggle MarkerPopupActions-module_actionsDropdownToggle__R5KYk\" role=\"button\"><span><\/span><svg xmlns=\"http:\/\/www.w3.org\/2000\/svg\" xmlns:xlink=\"http:\/\/www.w3.org\/1999\/xlink\" viewBox=\"0 0 18 18\" width=\"1em\" height=\"1em\" class=\"wds-icon wds-icon-small wds-dropdown__toggle-chevron\"><defs><path id=\"prefix__more-small\" d=\"M9 5c1.103 0 2-.896 2-2s-.897-2-2-2-2 .896-2 2 .897 2 2 2m0 8c-1.103 0-2 .896-2 2s.897 2 2 2 2-.896 2-2-.897-2-2-2m0-6c-1.103 0-2 .896-2 2s.897 2 2 2 2-.896 2-2-.897-2-2-2\"><\/path><\/defs><use fill-rule=\"evenodd\" xlink:href=\"#prefix__more-small\"><\/use><\/svg><\/div><div class=\"wds-dropdown__content wds-is-not-scrollable\"><ul class=\"MarkerPopupActions-module_dropdownContent__GYl-7\"><li class=\"MarkerPopupActions-module_action__xeKO9\" data-testid=\"copy-link-marker-action\"><span class=\"MarkerPopupActions-module_actionIcon__VyVPj\"><svg class=\"wds-icon wds-icon-small\"><use xlink:href=\"#wds-icons-link-small\"><\/use><\/svg><\/span><span class=\"MarkerPopupActions-module_actionLabel__yEa0-\">Copy link<\/span><\/li><li class=\"MarkerPopupActions-module_action__xeKO9\" data-testid=\"marker-report-action\"><span class=\"MarkerPopupActions-module_actionIcon__VyVPj\"><svg class=\"wds-icon wds-icon-small\"><use xlink:href=\"#wds-icons-alert-small\"><\/use><\/svg><\/span><span class=\"MarkerPopupActions-module_actionLabel__yEa0-\">Report Marker<\/span><\/li><\/ul><\/div><\/div><\/div><\/div><div class=\"MarkerPopup-module_scrollableContent__0N5PS\"><div class=\"MarkerPopup-module_description__fKuSE\"><div class=\"page-content MarkerPopup-module_descriptionContent__-ypRG\"><\/div><\/div><div class=\"MarkerPopup-module_imageWrapper__HuaF2\"><img class=\"MarkerPopup-module_image__7I5s4\"><\/div><\/div><div class=\"MarkerPopup-module_link__f59Lh\"><svg class=\"wds-icon wds-icon-tiny MarkerPopup-module_linkIcon__q3Rbd\"><use xlink:href=\"#wds-icons-link-tiny\"><\/use><\/svg><a href=\"\" target=\"_blank\" rel=\"noopener noreferrer\"><\/a><\/div><\/div><\/div><\/div><\/div><div class=\"leaflet-popup-tip-container\"><div class=\"leaflet-popup-tip\"><\/div><\/div>";;
 		if (this.marker.markerElement) customPopup.style.transform = this.marker.markerElement.style.transform;
 		this.elements = this.fetchPopupElements(customPopup);
 
@@ -293,7 +308,7 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 					.catch(this.showCopyFailed.bind(this));
 			}.bind(this));
 			
-			this.map.toggleMarkerObserver(true)
+			this.map.togglePopupObserver(true)
 		}
 	}
 
@@ -416,10 +431,16 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 		// Close button - Hidden by default
 		e.popupCloseButton = e.popupElement.querySelector(".leaflet-popup-close-button");
 		if (e.popupCloseButton) e.popupCloseButton.addEventListener("click", preventDefault);
+		
+		// Collectible "progress" button
+		e.progressButton = e.popupContent.querySelector(".MarkerPopup-module_progressMarkerButton__mEkXG");
+		e.progressButtonLabel = e.popupContent.querySelector(".mapsExtended_collectibleButtonLabel");
 
+		// Popup actions
 		e.popupCopyLinkButton = e.popupElement.querySelector(".MarkerPopupActions-module_action__xeKO9[data-testid=\"copy-link-marker-action\"]");
 		e.popupReportMarkerButton = e.popupElement.querySelector(".MarkerPopupActions-module_action__xeKO9[data-testid=\"marker-report-action\"]");
 
+		// Popup tip (arrow coming off popup)
 		e.popupTipContainer = e.popupElement.querySelector(".leaflet-popup-tip-container");
 
 		return e;
@@ -828,6 +849,86 @@ class ExtendedPopup implements Fandom.MarkerPopupData {
 		}
 
 		return this.elements.popupLink;
+	}
+	
+	createCollectibleElements() {
+		// Stop observing popup changes while we change the subtree of the popup
+		this.map.togglePopupObserver(false);
+
+		// Remove any collectible elements that may already exist
+		if (this.elements.progressButton) this.elements.progressButton.remove();
+
+		// Check if the marker that triggered this popup is a collectible one
+		if (this.map.hasCollectibles && this.marker.category.collectible) {
+			if (this.map.config.collectibleCheckboxStyle == "fandom") {
+				var elem = document.createElement("div");
+				elem.innerHTML = "<button class=\"wds-button wds-button mapsExtended_collectibleButton MarkerPopup-module_progressMarkerButton__mEkXG\" type=\"button\" ><svg xmlns=\"http:\/\/www.w3.org\/2000\/svg\" xmlns:xlink=\"http:\/\/www.w3.org\/1999\/xlink\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill-rule=\"evenodd\"><path id=\"IconCheckboxEmpty__a\" d=\"M3 21h18V3H3v18zM22 1H2a1 1 0 00-1 1v20a1 1 0 001 1h20a1 1 0 001-1V2a1 1 0 00-1-1z\"><\/path><path id=\"IconCheckbox__a\" d=\"M9.293 15.707a.997.997 0 001.414 0l7-7a.999.999 0 10-1.414-1.414L10 13.586l-2.293-2.293a.999.999 0 10-1.414 1.414l3 3zM3 21h18V3H3v18zM22 1H2a1 1 0 00-1 1v20a1 1 0 001 1h20a1 1 0 001-1V2a1 1 0 00-1-1z\"><\/path><\/svg><span class=\"mapsExtended_collectibleButtonLabel\"><\/span><\/button>";
+				this.elements.popupContent.appendChild(elem.firstElementChild);
+
+				// Save some references
+				this.elements.progressButton = this.elements.popupContent.querySelector(".MarkerPopup-module_progressMarkerButton__mEkXG");
+				this.elements.progressButtonLabel = this.elements.popupContent.querySelector(".mapsExtended_collectibleButtonLabel");
+
+				// Set a class on the button if it is collected
+				this.elements.progressButton.classList.toggle("MarkerPopup-module_progressMarkerButtonCompleted__KQRMh", this.marker.collected);
+
+				// Progress button click event
+				this.elements.progressButton.addEventListener("click", function (this: ExtendedPopup, e) {
+					var state = !this.marker.collected;
+					this.marker.setMarkerCollected(state, true, true, true);
+
+				}.bind(this));
+			}
+			else {
+				// Remove any old checkboxes (this can happen with live preview)
+				var oldCheckbox = this.elements.popupTitle.querySelector(".wds-checkbox");
+				console.log(oldCheckbox)
+				if (oldCheckbox) oldCheckbox.remove();
+
+				// Create checkbox container
+				var popupCollectedCheckbox = document.createElement("div");
+				popupCollectedCheckbox.className = "wds-checkbox";
+
+				// Create the checkbox itself
+				var popupCollectedCheckboxInput = document.createElement("input");
+				popupCollectedCheckboxInput.setAttribute("type", "checkbox");
+				popupCollectedCheckboxInput.id = "checkbox_" + this.map.id + "_" + this.marker.id;
+				//popupCollectedCheckboxInput.marker = this.marker; // <- Store reference to marker on checkbox so we don't have to manually look it up
+				popupCollectedCheckboxInput.checked = this.marker.collected;
+				this.elements.popupCollectedCheckbox = popupCollectedCheckboxInput;
+
+				// Create label adjacent to checkbox
+				var popupCollectedCheckboxLabel = document.createElement("label");
+				popupCollectedCheckboxLabel.setAttribute("for", popupCollectedCheckboxInput.id);
+
+				// Add checkbox input and label to checkbox container
+				popupCollectedCheckbox.appendChild(popupCollectedCheckboxInput);
+				popupCollectedCheckbox.appendChild(popupCollectedCheckboxLabel);
+
+				// Add checkbox container after title element
+				this.elements.popupTitle.after(popupCollectedCheckbox);
+
+				// Checked changed event
+				popupCollectedCheckboxInput.addEventListener("change", function (this: ExtendedMarker, e) {
+					this.setMarkerCollected(e.currentTarget.checked, true, true, true);
+
+				}.bind(this.marker));
+			}
+		}
+
+		this.map.togglePopupObserver(true);
+	}
+	
+	updateCollectibleElements() {
+		var state = this.marker.collected;
+
+		if (this.elements.popupCollectedCheckbox) {
+			this.elements.popupCollectedCheckbox.checked = state;
+		}
+		if (this.elements.progressButton) {
+			this.elements.progressButton.classList.toggle("MarkerPopup-module_progressMarkerButtonCompleted__KQRMh", state);
+			this.elements.progressButtonLabel.textContent = mapsExtended.i18n.msg("collect-" + (state ? "unmark" : "mark") + "-button").plain();
+		}
 	}
 
 	// Processes all the unapplied changes that were set prior to having a popup associated with this marker

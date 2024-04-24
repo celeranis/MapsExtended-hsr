@@ -42,6 +42,8 @@ class ExtendedMarker implements Fandom.MarkerData {
 	height: number
 	order: number
 	
+	zoomLayer?: ZoomLayer
+	
 	// Marker (element in DOM - we don't know this yet)
 	markerElement: MarkerElement = null
 	
@@ -162,6 +164,18 @@ class ExtendedMarker implements Fandom.MarkerData {
 
 		this.markerElement = undefined;
 		this.popup.deinitPopup();
+	}
+	
+	passesFilter() {
+		// Call all filter functions for this marker, until one return false
+		// Only markers that return true for all filter functions will be shown
+		for (var i = 0; i < this.map.filterFunctions.length; i++) {
+			if (this.map.filterFunctions[i](this) == false) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	// Click event on marker
@@ -548,13 +562,15 @@ class ExtendedMarker implements Fandom.MarkerData {
 
 		// Set the collected state on the connected popup (if shown)
 		// This does not trigger the checked change event
-		if (updatePopup && this.popup.isPopupShown()) {
-			var checkbox = this.popup.elements.popupCollectedCheckbox;
-			checkbox.checked = state;
+		if (this.popup.isPopupShown() && updatePopup) {
+			this.popup.updateCollectibleElements();
 		}
 
 		// Update the collected label
-		if (updateLabel) this.category.updateCollectedLabel();
+		if (updateLabel) {
+			this.category.updateCollectedLabel();
+			this.map.updateCollectedFilterLabels();
+		}
 
 		// Show a congratulatory banner if all collectibles were collected
 		if (canShowBanner && this.map.config.enableCollectedAllNotification && state == true) {
@@ -567,6 +583,17 @@ class ExtendedMarker implements Fandom.MarkerData {
 				var msg = mapsExtended.i18n.msg("collected-all-banner", numCollected, numTotal, mw.html.escape(this.category.name), this.map.getMapLink(null ,'wikitext')).parse();
 				this.map.elements.collectedMessageBanner.setContent(msg);
 				this.map.elements.collectedMessageBanner.show();
+			}
+		}
+		
+		// If the marker is now in a state where it would be filtered out, hide it
+		if (
+			(state == true && this.map.collectedVisible == false) ||
+			(state == false && this.map.nonCollectedVisible == false)
+		) {
+			// If the popup for the marker is shown, hide it when it's hidden
+			if (this.popup.isPopupShown()) {
+				this.popup.events.onPopupHidden.subscribeOnce(function (this: ExtendedMap) { this.updateFilter(); }.bind(this.map));
 			}
 		}
 	}

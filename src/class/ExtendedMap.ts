@@ -43,6 +43,15 @@ interface MarkerDisambigButton extends HTMLButtonElement {
 	marker: ExtendedMarker
 }
 
+interface ZoomLayer {
+	markers: ExtendedMarker[]
+	categories: ExtendedCategory[]
+	minZoom: number
+	maxZoom: number
+	id: string | number
+	visible?: boolean
+}
+
 /**
 	ExtendedMap
 
@@ -119,7 +128,7 @@ class ExtendedMap {
 	
 	isZooming?: boolean
 	zoomCenter?: Position
-	zoomType?: EventArgs.MapZoomed['zoomType']
+	zoomType?: EventArgs.MapZoomed['type']
 	zoomStartTransform?: Transform
 	zoomStartViewportPos?: Position
 	zoomStartSize?: Position
@@ -132,12 +141,25 @@ class ExtendedMap {
 		disambigContainer?: TooltipElement
 		editButton: HTMLDivElement
 		filterAllCheckboxInput: HTMLInputElement
+		filterComplete: HTMLDivElement
+		filterIncomplete: HTMLDivElement
+		filterCompleteCheckbox: HTMLInputElement
+		filterIncompleteCheckbox: HTMLInputElement
+		filterCompleteLabel: HTMLElement
+		filterIncompleteLabel: HTMLElement
+		filterCategoriesSection: HTMLDivElement
+		filterCategoriesSectionLabel: HTMLElement
 		filterElements: NodeListOf<FilterElement>
+		filterProgressSection: HTMLElement
+		filterProgressSectionContent: HTMLElement
+		filterProgressSectionLabel: HTMLElement
+		filterCategoriesSectionContent: HTMLElement
 		filtersDropdown: HTMLDivElement
 		filtersDropdownButton: HTMLButtonElement
 		filtersDropdownContent: HTMLDivElement
 		filtersDropdownList: HTMLDivElement
 		filtersList: HTMLElement
+		fullscreenButton: HTMLDivElement
 		fullscreenControl: HTMLDivElement
 		fullscreenControlButton: HTMLAnchorElement
 		interactiveMapsContainer: HTMLDivElement
@@ -305,6 +327,11 @@ class ExtendedMap {
 				sourceEvent.subscribe(function (args) { targetEvent.invoke(args); });
 
 		}.bind(this));
+		
+		// Bind certain prototype functions so that they're unique to each instance
+		this.onMouseMove = this.onMouseMove.bind(this);
+		this.onMouseDown = this.onMouseDown.bind(this);
+		this.onMouseUp = this.onMouseUp.bind(this);
 
 		// Infer iconAnchor from iconPosition
 		if (this.config["iconPosition"] != undefined) {
@@ -519,14 +546,7 @@ class ExtendedMap {
 						this[config.booleanName] = value;
 
 						if (config.eventName == "onMapZoomed") {
-							this.events[config.eventName].invoke({
-								map: this,
-								value: value,
-								center: this.zoomCenter,
-								zoomType: this.zoomType,
-								scaleDelta: this.getElementTransformScale(this.elements.leafletBaseImageLayer, true),
-								scale: this.getElementTransformScale(this.elements.leafletProxy, true) * 2
-							});
+							this.onMapZoomed(value);
 						}
 						else
 							this.events[config.eventName].invoke({ map: this, value: value });
@@ -618,7 +638,7 @@ class ExtendedMap {
 				var removedPopupMarker = removedPopup.marker;
 				var removedPopupMarkerId = removedPopupElement.id;
 			}
-			else if (removedPopupElement.id.startsWith("popup_")) {
+			else if (removedPopupElement && removedPopupElement.id.startsWith("popup_")) {
 				var removedMarker = mutationList[0].removedNodes[0] as MarkerElement
 				var removedPopupMarkerId = removedMarker.id.replace("popup_", "");
 				var removedPopupMarker = removedMarker.marker || this.markerLookup.get(removedPopupMarkerId);
@@ -630,6 +650,7 @@ class ExtendedMap {
 			}
 
 			log("Popup removed: " + removedPopupMarkerId);
+			removedPopup.events.onPopupHidden.invoke();
 			this.events.onPopupHidden.invoke({ map: this, marker: removedPopupMarker });
 		}
 
@@ -647,11 +668,14 @@ class ExtendedMap {
 				return;
 
 			// Rescope to root popup on addition of content in subtree
-			else if (popupElement.classList.contains("MarkerPopup-module_popup__eNi--"))
+			else if (!popupElement.classList.contains("leaflet-popup"))
 				popupElement = popupElement.closest(".leaflet-popup");
 
 			// If we can't get an element, return
-			if (!popupElement) return;
+			if (!popupElement) {
+				log("Could not find a popup element")
+				return
+			};
 
 			// If the last marker clicked doesn't have an associated marker object (i.e. it didn't have an ID), try and associate it now
 			if (!this.lastMarkerClicked && !this.lastMarkerHovered) {
@@ -730,6 +754,7 @@ class ExtendedMap {
 				}
 
 				// Fire onPopupShown
+				marker.popup.events.onPopupShown.invoke();
 				this.events.onPopupShown.invoke({ map: this, marker: marker });
 			}
 		}
@@ -814,9 +839,13 @@ class ExtendedMap {
 		this.elements.zoomButton = this.elements.leafletControlContainer.querySelector(".leaflet-control-zoom");
 		this.elements.zoomInButton = this.elements.leafletControlContainer.querySelector(".leaflet-control-zoom-in");
 		this.elements.zoomOutButton = this.elements.leafletControlContainer.querySelector(".leaflet-control-zoom-out");
+		this.elements.fullscreenButton = this.elements.leafletControlContainer.querySelector(".leaflet-control:has(.map-fullscreen-control)");
 
 		// List of all marker elements
 		var markerElements = this.elements.leafletMarkerPane.querySelectorAll(".leaflet-marker-icon:not(.marker-cluster)") as NodeListOf<MarkerElement>;
+		
+		// Get the initial zoomScale
+		this.zoomScale = this.getElementTransformScale(this.elements.leafletProxy, true) * 2
 
 		// Things to do only once (pre-match)
 		if (isNew) {
@@ -839,6 +868,9 @@ class ExtendedMap {
 
 			// Create fullscreen button
 			this.initFullscreen();
+			
+			// Create filters
+			this.initFilters();
 
 			// Create category groups
 			this.initCategoryGroups();
@@ -867,6 +899,9 @@ class ExtendedMap {
 			
 			// Set up marker disambiguations
 			this.initMarkerDisambiguations();
+
+			// Set up zoom layers
+			this.initZoomLayers();
 			
 			// Start fullscreen
 			if (urlParams.get('startMapFullscreen') == '1') {
@@ -874,6 +909,10 @@ class ExtendedMap {
 			}
 		}
 		else {
+			if (this.elements.fullscreenButton) {
+				this.elements.fullscreenButton.remove();
+			}
+			
 			// Changing the size of the leafet container causes it to be remade (and the fullscreen button control destroyed)
 			// Re-add the fullscreen button to the DOM
 			if (this.config.enableFullscreen == true && this.controlAssociations["fullscreen"].isPresent)
@@ -891,6 +930,7 @@ class ExtendedMap {
 			var marker = this.markers[i];
 			var markerElement = null;
 
+			/*
 			// Check to see if the category of the marker is hidden, if so the marker won't be in the DOM
 			// and we shouldn't bother trying to associate the category
 			if (marker.category && marker.category.visible == false) {
@@ -901,7 +941,7 @@ class ExtendedMap {
 
 				continue;
 			}
-
+			*/
 			// Associate markers in the JSON definition with the marker elements in the DOM                
 
 			// Index-based matching
@@ -977,6 +1017,8 @@ class ExtendedMap {
 			if (this.search.selectedMarker)
 				this.search.toggleMarkerHighlight(this.search.selectedMarker, true);
 		}
+		
+		this.updateFilter();
 
 		// Set initialized when we've done everything
 		this.initialized = true;
@@ -1001,159 +1043,35 @@ class ExtendedMap {
 	_invalidateLastClickEvent?: boolean
 
 	initMapEvents() {
-		var mouseDownPos, mouseMoveStopTimer;
-
-		// Is called on mousemove after mousedown, and for subsequent mousemove events until dragging more than 2px
-		var onMouseMove = function (this: ExtendedMap, e) {
-			// Don't consider this a drag if shift was held on mouse down
-			if (this.isBoxZoomDragging) return;
-
-			if (!this.isDragging) {
-				// If the position of the move is 2px away from the mousedown position
-				if (Math.abs(e.pageX - this.mouseDownPos[0]) > 2 ||
-					Math.abs(e.pageY - this.mouseDownPos[1]) > 2) {
-					log("Started drag at x: " + this.mouseDownPos[0] + ", y: " + this.mouseDownPos[1] + " (" + this.mouseDownMapPos + ")");
-
-					// This is a drag
-					this.isDragging = true;
-					//this.elements.leafletContainer.removeEventListener("mousemove", onMouseMove);
-					this.events.onMapDragged.invoke({ value: true });
-				}
-			}
-			else {
-				// Determine whether we're resuming a drag
-				if (!this.isDraggingMove) {
-					log("Resuming drag");
-					this.isDraggingMove = true;
-					this.events.onMapDraggedMove.invoke(true);
-				}
-
-				// Cancel the timeout which in 300ms will indicate we've paused dragging
-				clearTimeout(mouseMoveStopTimer);
-				mouseMoveStopTimer = setTimeout(function (this: ExtendedMap) {
-					log("Pausing drag");
-					this.isDraggingMove = false;
-					this.events.onMapDraggedMove.invoke(false);
-				}.bind(this), 100);
-			}
-
-		}.bind(this);
-
-		// Mouse down event on leaflet container
-		// Set up an event to cache the element that was last clicked, regardless of if it's actually a associated marker or not
-		this.elements.leafletContainer.addEventListener("mousedown", function (this: ExtendedMap, e) {
-			// Ignore right clicks
-			if (e.button == 2) return;
-
-			// Determine whether this is a box zoom
-			if (e.shiftKey) this.isBoxZoomDragging = true;
-
-			// Save the position of the event
-			this.mouseDownPos = [e.pageX, e.pageY];
-			this.mouseDownMapPos = [e.offsetX, e.offsetY];
-			this.pageToMapOffset = [e.offsetX - e.pageX, e.offsetY - e.pageY];
-
-			// Subscribe to the mousemove event so that the movement is tracked
-			this.elements.leafletContainer.addEventListener("mousemove", onMouseMove);
-			this._invalidateLastClickEvent = false;
-
-			// Traverse up the click element until we find the marker or hit the root of the map
-			// This is because markers may have sub-elements that may be the target of the click
-			var elem = e.target;
-			while (true) {
-				// No more parent elements
-				if (!elem || elem == e.currentTarget)
-					break;
-
-				if (elem.classList.contains("leaflet-marker-icon")) {
-					this.lastMarkerClicked = elem.marker;
-					this.lastMarkerElementClicked = elem;
-
-					break;
-				}
-
-				elem = elem.parentElement;
-			}
-		}.bind(this));
-
-		// Mouse up event on <s>leaflet container</s> window
-		// (mouseup won't trigger if the mouse is released outside the leaflet window)
-		window.addEventListener("mouseup", function (this: ExtendedMap, e) {
-			// If the mouse was released on the map container or any item within it, the map was clicked
-			if (this.elements.leafletContainer.contains(e.target)) {
-				var isOnBackground = e.target == this.elements.leafletContainer || e.target == this.elements.leafletBaseImageLayer;
-
-				this.events.onMapClicked.invoke(
-					{
-						map: this, event: e,
-
-						// Clicked on map background
-						isOnBackground: isOnBackground,
-
-						// Clicked on marker,
-						isMarker: this.lastMarkerHovered != undefined,
-						marker: this.lastMarkerHovered,
-
-						// Was the end of the drag
-						wasDragging: this.isDragging,
-					});
-
-				// Custom popups - If mousing up on the map background, not the end of a drag, and there is a popup showing
-				if (this.config.useCustomPopups == true && isOnBackground && !this.isDragging && this.lastPopupShown) {
-					// Hide the last popup shown
-					this.lastPopupShown.hide();
-				}
-			}
-
-			this.elements.leafletContainer.removeEventListener("mousemove", onMouseMove);
-
-			// If mousing up after dragging, regardless of if it ended within the window
-			if (this.isDragging == true) {
-				this.mouseUpPos = [e.pageX, e.pageY];
-				this.mouseUpMapPos = [e.pageX + this.pageToMapOffset[0], e.pageY + this.pageToMapOffset[1]];
-
-				log("Ended drag at x: " + e.pageX + ", y: " + e.pageY + " (" + this.mouseUpMapPos.toString() + ")");
-
-				// No longer dragging
-				this.isDragging = false;
-				this.events.onMapDragged.invoke({ value: false });
-
-				// Invalidate click event on whatever marker is hovered
-				if (this.lastMarkerHovered)
-					this._invalidateLastClickEvent = true;
-			}
-
-			// If mousing up after starting a box zoom, record this zoom as a box zoom
-			if (this.isBoxZoomDragging == true) {
-				this.isBoxZoomDragging = false;
-				this.zoomType = "box";
-				this.zoomCenter = [this.mouseUpMapPos[0] - this.mouseDownMapPos[0],
-				this.mouseUpMapPos[1] - this.mouseDownMapPos[1]];
-				this.zoomStartTransform = this.getElementTransformPos_css(this.elements.leafletBaseImageLayer);
-				this.zoomStartViewportPos = this.transformToViewportPosition(this.zoomStartTransform);
-				this.zoomStartSize = this.getElementSize(this.elements.leafletBaseImageLayer);
-			}
-
-		}.bind(this));
-
-		/*
-		this.elements.leafletContainer.addEventListener("mousemove", function(e)
-		{
-			console.log("x: " + e.clientX + ", y: " + e.clientY);
-			console.log(this.clientToTransformPosition([e.clientX, e.clientY]).toString());
-			console.log(this.clientToScaledPosition([e.clientX, e.clientY]).toString());
-			console.log(this.clientToUnscaledPosition([e.clientX, e.clientY]).toString());
-
-		}.bind(this));
-		*/
+		// Mouse down event (remove first to ensure this only gets added once)
+		this.elements.leafletContainer.removeEventListener("mousedown", this.onMouseDown);
+		this.elements.leafletContainer.addEventListener("mousedown", this.onMouseDown);
 
 		// Remove non-navigating hrefs, which show a '#' in the navbar, and a link in the bottom-left
 		this.elements.zoomInButton.removeAttribute("href");
 		this.elements.zoomOutButton.removeAttribute("href");
+		this.elements.zoomInButton.setAttribute("tabindex", "0");
+		this.elements.zoomOutButton.setAttribute("tabindex", "0");
 		this.elements.zoomInButton.style.cursor = this.elements.zoomOutButton.style.cursor = "pointer";
 		this.elements.zoomInButton.addEventListener("click", zoomButtonClick.bind(this));
 		this.elements.zoomOutButton.addEventListener("click", zoomButtonClick.bind(this));
 		function zoomButtonClick(this: ExtendedMap, e) {
+			// If this was from a keydown event with the enter key, click the button
+			if (e instanceof KeyboardEvent && e.key == "Enter") {
+				var clickEvent = new PointerEvent("click", {
+					view: window,
+					bubbles: true,
+					cancelable: false,
+					
+					// This is important to handle "big" zooms
+					shiftKey: e.shiftKey
+				});
+				
+				e.currentTarget.dispatchEvent(clickEvent);
+			} else if (e instanceof PointerEvent) {
+				e.preventDefault();
+			}
+			
 			this.zoomType = "button";
 			this.zoomCenter = [this.elements.leafletContainer.clientWidth / 2, this.elements.leafletContainer.clientHeight / 2];
 			this.zoomStartTransform = this.getElementTransformPos_css(this.elements.leafletBaseImageLayer);
@@ -1206,6 +1124,165 @@ class ExtendedMap {
 
 		}.bind(this));
 	}
+	
+	mouseMoveStopTimer?: number
+	
+	// Is called on mousemove after mousedown, and for subsequent mousemove events until dragging more than 2px
+	onMouseMove(e: MouseEvent) {
+		// Don't consider this a drag if shift was held on mouse down
+		if (this.isBoxZoomDragging) return;
+
+		if (!this.isDragging) {
+			// If the position of the move is 2px away from the mousedown position
+			if (Math.abs(e.pageX - this.mouseDownPos[0]) > 2 ||
+				Math.abs(e.pageY - this.mouseDownPos[1]) > 2) {
+				log("Started drag at x: " + this.mouseDownPos[0] + ", y: " + this.mouseDownPos[1] + " (" + this.mouseDownMapPos + ")");
+
+				// This is a drag
+				this.isDragging = true;
+				//this.elements.leafletContainer.removeEventListener("mousemove", onMouseMove);
+				this.events.onMapDragged.invoke({ value: true });
+			}
+		}
+		else {
+			// Determine whether we're resuming a drag
+			if (!this.isDraggingMove) {
+				log("Resuming drag");
+				this.isDraggingMove = true;
+				this.events.onMapDraggedMove.invoke(true);
+			}
+
+			// Cancel the timeout which in 300ms will indicate we've paused dragging
+			clearTimeout(this.mouseMoveStopTimer);
+			this.mouseMoveStopTimer = setTimeout(function (this: ExtendedMap) {
+				log("Pausing drag");
+				this.isDraggingMove = false;
+				this.events.onMapDraggedMove.invoke(false);
+			}.bind(this), 100);
+		}
+
+	}
+
+	// Mouse down event (should be added as an event listener on the leaflet container)
+	// Set up an event to cache the element that was last clicked, regardless of if it's actually a associated marker or not
+	onMouseDown(e: MouseEvent) {
+		// Ignore right clicks
+		if (e.button == 2) return;
+
+		// Determine whether this is a box zoom
+		if (e.shiftKey) this.isBoxZoomDragging = true;
+
+		// Save the position of the event
+		this.mouseDownPos = [e.pageX, e.pageY];
+		this.mouseDownMapPos = [e.offsetX, e.offsetY];
+		this.pageToMapOffset = [e.offsetX - e.pageX, e.offsetY - e.pageY];
+
+		// Subscribe to the mousemove event so that the movement is tracked
+		this.elements.leafletContainer.addEventListener("mousemove", this.onMouseMove);
+		this._invalidateLastClickEvent = false;
+
+		// Traverse up the click element until we find the marker or hit the root of the map
+		// This is because markers may have sub-elements that may be the target of the click
+		var elem = e.target as HTMLElement;
+		while (true) {
+			// No more parent elements
+			if (!elem || elem == e.currentTarget)
+				break;
+
+			if (elem.classList.contains("leaflet-marker-icon")) {
+				this.lastMarkerClicked = (elem as MarkerElement).marker;
+				this.lastMarkerElementClicked = elem;
+
+				break;
+			}
+
+			elem = elem.parentElement;
+		}
+
+	}
+
+	// Mouse up event. Should be added as an event listener to the window, as mouseup
+	// won't trigger if on the leafletContainer and the mouse is released outside the leaflet window
+	onMouseUp(e: MouseEvent) {
+		// If the mouse was released on the map container or any item within it, the map was clicked
+		if (this.elements.leafletContainer.contains(e.target as Node)) {
+			var isOnBackground = e.target == this.elements.leafletContainer || e.target == this.elements.leafletBaseImageLayer;
+
+			this.events.onMapClicked.invoke(
+				{
+					map: this, event: e,
+
+					// Clicked on map background
+					isOnBackground: isOnBackground,
+
+					// Clicked on marker,
+					isMarker: this.lastMarkerHovered != undefined,
+					marker: this.lastMarkerHovered,
+
+					// Was the end of the drag
+					wasDragging: this.isDragging,
+				});
+
+			// Custom popups - If mousing up on the map background, not the end of a drag, and there is a popup showing
+			if (this.config.useCustomPopups == true && isOnBackground && !this.isDragging && this.lastPopupShown) {
+				// Hide the last popup shown
+				this.lastPopupShown.hide();
+			}
+		}
+
+		this.elements.leafletContainer.removeEventListener("mousemove", this.onMouseMove);
+
+		// If mousing up after dragging, regardless of if it ended within the window
+		if (this.isDragging == true) {
+			this.mouseUpPos = [e.pageX, e.pageY];
+			this.mouseUpMapPos = [e.pageX + this.pageToMapOffset[0], e.pageY + this.pageToMapOffset[1]];
+
+			log("Ended drag at x: " + e.pageX + ", y: " + e.pageY + " (" + this.mouseUpMapPos.toString() + ")");
+
+			// No longer dragging
+			this.isDragging = false;
+			this.events.onMapDragged.invoke({ value: false });
+
+			// Invalidate click event on whatever marker is hovered
+			if (this.lastMarkerHovered)
+				this._invalidateLastClickEvent = true;
+		}
+
+		// If mousing up after starting a box zoom, record this zoom as a box zoom
+		if (this.isBoxZoomDragging == true) {
+			this.isBoxZoomDragging = false;
+			this.zoomType = "box";
+			this.zoomCenter = [this.mouseUpMapPos[0] - this.mouseDownMapPos[0],
+			this.mouseUpMapPos[1] - this.mouseDownMapPos[1]];
+			this.zoomStartTransform = this.getElementTransformPos_css(this.elements.leafletBaseImageLayer);
+			this.zoomStartViewportPos = this.transformToViewportPosition(this.zoomStartTransform);
+			this.zoomStartSize = this.getElementSize(this.elements.leafletBaseImageLayer);
+		}
+
+	}
+	
+	zoomScaleDelta: number
+	zoomScale: number
+	zoomState?: 'zoomStart' | 'zoomEnd'
+
+	onMapZoomed(value: boolean) {
+		this.zoomScaleDelta = value ? this.getElementTransformScale(this.elements.leafletBaseImageLayer, true) : this.zoomScaleDelta;
+		this.zoomScale = this.getElementTransformScale(this.elements.leafletProxy, true) * 2;
+		this.zoomState = value ? "zoomStart" : "zoomEnd";
+
+		var args = {
+			map: this,
+			value: value,
+			state: this.zoomState,
+			direction: (this.zoomScaleDelta >= 1 ? "in" : "out") as ('in' | 'out'),
+			center: this.zoomCenter,
+			type: this.zoomType,
+			scaleDelta: this.zoomScaleDelta,
+			scale: this.zoomScale
+		};
+
+		this.events.onMapZoomed.invoke(args);
+	}
 
 	// Deinit effectively disconnects the map from any elements that may have been removed in the DOM (with the exception of filter elements)
 	// After a map is deinitialized, it should not be used until it is reinitialized with init
@@ -1223,6 +1300,10 @@ class ExtendedMap {
 
 		this.isDragging = this.isZooming = false;
 		this._isScaledMapImageSizeDirty = true;
+		
+		window.removeEventListener("mouseup", this.onMouseUp);
+		this.elements.leafletContainer.removeEventListener("mousedown", this.onMouseDown);
+		this.elements.leafletContainer.removeEventListener("mousemove", this.onMouseMove);
 
 		this.initialized = false;
 
@@ -1374,26 +1455,37 @@ class ExtendedMap {
 	compareMarkerAndJsonElement(markerElem: MarkerElement, markerJson: ExtendedMarker) {
 		return markerJson.compareMarkerAndJsonElement(markerElem);
 	}
+	
+	get markerCompareFunctions(): Record<string, (a: ExtendedMarker, b: ExtendedMarker) => number> {
+		var collator = new Intl.Collator();
+		var value = {
+			"latitude-asc": function (a, b) { return Math.sign(a.position[1] - b.position[1]); },
+			"latitude-desc": function (a, b) { return Math.sign(b.position[1] - a.position[1]); },
+			"longitude-asc": function (a, b) { return Math.sign(a.position[0] - b.position[0]); },
+			"longitude-desc": function (a, b) { return Math.sign(b.position[0] - a.position[0]); },
+			"category-asc": function (a, b) { return (b.map.categories.indexOf(b.category) - a.map.categories.indexOf(a.category)) || (a.position[1] - b.position[1]); },
+			"category-desc": function (a, b) { return (a.map.categories.indexOf(a.category) - b.map.categories.indexOf(b.category)) || (a.position[1] - b.position[1]); },
+			"name-asc": function (a, b) { return collator.compare(a.popup.title, b.popup.title); }
+		}
+		Object.defineProperty(this, 'markerCompareFunctions', { value })
+		return value
+	}
 
 	// Returns a function that can be used to compare markers
 	markerCompareFunction(sortType: MarkerSortType) {
+		sortType = sortType || this.config.sortMarkers;
 		sortType = sortType.toLowerCase() as MarkerSortType;
 
-		if (sortType == "latitude" || sortType == "latitude-asc")
-			return function (a, b) { return a.position[1] - b.position[1]; };
-		else if (sortType == "latitude-desc")
-			return function (a, b) { return b.position[1] - a.position[1]; };
-		else if (sortType == "longitude" || sortType == "longitude-asc")
-			return function (a, b) { return a.position[0] - b.position[0]; };
-		else if (sortType == "longitude-desc")
-			return function (a, b) { return b.position[0] - a.position[0]; };
-		else if (sortType == "category" || sortType == "category-asc")
-			return function (a, b) { return (b.map.categories.indexOf(b.category) - a.map.categories.indexOf(a.category)) || (a.position[1] - b.position[1]); };
-		else if (sortType == "category-desc")
-			return function (a, b) { return (a.map.categories.indexOf(a.category) - b.map.categories.indexOf(b.category)) || (a.position[1] - b.position[1]); };
-		else if (sortType == "name" || sortType == "name-asc") {
-			var compare = new Intl.Collator().compare;
-			return function (a, b) { return compare(a.popup.title, b.popup.title); };
+		if (!sortType.endsWith("desc") && !sortType.endsWith("asc"))
+			sortType += "-asc";
+
+		// Return a cached version of the compare function
+		// This prevents a new function from being created every time this is called
+		if (this.markerCompareFunctions[sortType])
+			return this.markerCompareFunctions[sortType];
+		else {
+			console.warn("A compare function with the name " + sortType + " does not exist!");
+			return this.markerCompareFunctions["latitude-asc"];
 		}
 	}
 
@@ -2085,6 +2177,42 @@ class ExtendedMap {
 	// }
 
 	// Fullscreen
+	onFullscreenButton(e: KeyboardEvent | PointerEvent) {
+		// If this is a keyboard event, only continue if it's a enter keypress
+		if (e instanceof KeyboardEvent && e.key != "Enter")
+			return;
+		else if (e instanceof PointerEvent)
+			e.stopPropagation();
+
+		// Remove marker query parameter from URL so that when the map goes fullscreen, it isn't zoomed into the marker again
+		var url = window.location;
+		if (urlParams.has("marker")) {
+			urlParams.delete("marker");
+			window.history.replaceState({}, document.title, url.origin + url.pathname + (urlParams.toString() != "" ? "?" : "") + urlParams.toString() + url.hash);
+		}
+
+		// Always exit fullscreen if in either mode
+		if (this.isFullscreen || this.isWindowedFullscreen) {
+			if (this.isFullscreen) this.setFullscreen(false);
+			if (this.isWindowedFullscreen) this.setWindowedFullscreen(false);
+		}
+
+		// If control key is pressed, use the opposite mode
+		else if (e.ctrlKey || e.metaKey) {
+			if (this.config.fullscreenMode == "screen")
+				this.setWindowedFullscreen(true);
+			else if (this.config.fullscreenMode == "window")
+				this.setFullscreen(true);
+		}
+
+		// Otherwise use the default mode
+		else {
+			if (this.config.fullscreenMode == "screen")
+				this.setFullscreen(true);
+			else if (this.config.fullscreenMode == "window")
+				this.setWindowedFullscreen(true);
+		}
+	}
 
 	// Transition the map to and from fullscreen
 	setFullscreen(value: boolean): Promise<void> {
@@ -2174,7 +2302,10 @@ class ExtendedMap {
 
 		// Modify and set up some styles - this is only executed once
 		this.initFullscreenStyles();
-
+		
+		// Remove built-in fullscreen button
+		if (this.elements.fullscreenButton) this.elements.fullscreenButton.remove();
+		
 		// Don't continue if fullscreen is disabled
 		if (this.config.enableFullscreen == false)
 			return;
@@ -2185,6 +2316,7 @@ class ExtendedMap {
 
 		var fullscreenControlButton = document.createElement("a");
 		fullscreenControlButton.className = "leaflet-control-fullscreen-button leaflet-control-fullscreen-button-zoom-in";
+		fullscreenControlButton.setAttribute("tabindex", "0");
 		fullscreenControlButton.setAttribute("title", mapsExtended.i18n.msg("fullscreen-enter-tooltip").plain());
 
 		mw.hook("dev.wds").add(function (wds) {
@@ -2201,39 +2333,8 @@ class ExtendedMap {
 		this.elements.fullscreenControlButton = fullscreenControlButton;
 
 		// Click event on fullscreen button
-		fullscreenControlButton.addEventListener("click", function (this: ExtendedMap, e: MouseEvent) {
-			// Remove marker query parameter from URL so that when the map goes fullscreen, it isn't zoomed into the marker again
-			var url = window.location;
-			if (urlParams.has("marker")) {
-				urlParams.delete("marker");
-				window.history.replaceState({}, document.title, url.origin + url.pathname + (urlParams.size != 0 ? "?" : "") + urlParams.toString() + url.hash);
-			}
-
-			// Always exit fullscreen if in either mode
-			if (this.isFullscreen || this.isWindowedFullscreen) {
-				if (this.isFullscreen) this.setFullscreen(false);
-				if (this.isWindowedFullscreen) this.setWindowedFullscreen(false);
-			}
-
-			// If control key is pressed, use the opposite mode
-			else if (e.ctrlKey || e.metaKey) {
-				if (this.config.fullscreenMode == "screen")
-					this.setWindowedFullscreen(true);
-				else if (this.config.fullscreenMode == "window")
-					this.setFullscreen(true);
-			}
-
-			// Otherwise use the default mode
-			else {
-				if (this.config.fullscreenMode == "screen")
-					this.setFullscreen(true);
-				else if (this.config.fullscreenMode == "window")
-					this.setWindowedFullscreen(true);
-			}
-
-			e.stopPropagation();
-
-		}.bind(this));
+		fullscreenControlButton.addEventListener("click", this.onFullscreenButton.bind(this));
+		fullscreenControlButton.addEventListener("keydown", this.onFullscreenButton.bind(this));
 
 		fullscreenControlButton.addEventListener("dblclick", stopPropagation);
 		fullscreenControlButton.addEventListener("mousedown", stopPropagation);
@@ -2464,6 +2565,145 @@ class ExtendedMap {
 		this.sidebar = new Sidebar(this)
 		this.sidebar.init()
 	}
+	
+	// Zoom layers
+	
+	zoomLayers: ZoomLayer[]
+	zoomLayersAllEmpty: boolean
+
+	initZoomLayers() {
+		this.zoomLayers = [];
+		this.zoomLayersAllEmpty = true;
+
+		// Separate regexes from category and marker IDs
+		function regexFilterFn(s) { return typeof s == "string" && s.charAt(0) == '/' && s.charAt(s.length) == '/' && s.length > 2; };
+		function splitIntoIdsAndRegexes(strings: (string | number)[] | string) {
+			var ids: string[] = [];
+			var regexes: RegExp[] = [];
+
+			if (Array.isArray(strings)) {
+				for (var s = 0; s < strings.length; s++) {
+					if (regexFilterFn(strings[s])) {
+						try {
+							var regex = new RegExp(strings[s].toString().slice(1, -1))
+							regexes.push(regex);
+						}
+						catch (e) {
+							console.error("The regex pattern \"" + strings[s] + "\" for zoom layer " + layer.id + " could not be parsed. It will be ignored");
+						}
+					}
+					else {
+						ids.push(strings[s].toString());
+					}
+				}
+			}
+
+			return { ids: ids, regexes: regexes };
+		};
+
+		// Collect the markers for each zoom layer
+		for (var i = 0; i < this.config.zoomLayers.length; i++) {
+			var layerConfig = this.config.zoomLayers[i] as Config.ZoomLayer;
+			layerConfig.visible = true;
+
+			var cir = splitIntoIdsAndRegexes(layerConfig.categories);
+			var categoryIdStrings = cir.ids;
+			var categoryRegexes = cir.regexes;
+
+			var mir = splitIntoIdsAndRegexes(layerConfig.markers);
+			var markerIds = mir.ids;
+			var markerRegexes = mir.regexes;
+
+			// Add categoryIds based on categoryRegexes
+			var categoryIds = Object.assign(categoryIdStrings, this.categories.filter(function (c) {
+				// Exclude categories already in IDs
+				return !categoryIds.includes(c.id) &&
+
+					// Include those match one of the regex patterns
+					categoryRegexes.some(function (r) { r.test(c.id); })
+			}));
+			
+			var layer: ZoomLayer = layerConfig as unknown as ZoomLayer
+
+			// Next, filter the markers, building an array of markers that belong to this layer
+			layer.markers = this.markers.filter(function (m) {
+				var isInZoomLayer = markerIds.includes(m.id) ||
+					categoryIds.includes(m.categoryId) ||
+					markerRegexes.some(function (r) { r.test(m.id); });
+
+				// Add a reference to the zoomLayer to each marker
+				if (isInZoomLayer) m.zoomLayer = layer;
+
+				return isInZoomLayer;
+			});
+
+			// We no longer need these properties (the rest of the above will be GC'd)
+			layer.categories = null;
+
+			if (layer.markers.length > 0)
+				this.zoomLayersAllEmpty = false;
+
+			this.zoomLayers.push(layer);
+		}
+
+		if (this.zoomLayers.length > 0) {
+			// While searching, this re-adds any markers that have been removed from the map so that they may appear in the search
+			this.events.onSearchPerformed.subscribe(function (this: ExtendedMap, search) {
+				if (search.isStartingSearch || search.isEndingSearch) {
+					this.updateFilter();
+				}
+
+			}.bind(this));
+
+			this.filterFunctions.push(function (marker) {
+				// Ignore the zoomLayer visibility when searching
+				if (marker.map.search.isSearching) return true;
+
+				return marker.zoomLayer != null ? marker.zoomLayer.visible : true;
+			});
+
+			this.events.onMapZoomed.subscribe(function (this: ExtendedMap, e: EventArgs.MapZoomed) {
+				if ((e.state == "zoomStart" && e.direction == "out") ||
+					(e.state == "zoomEnd" && e.direction == "in")
+				) {
+					this.updateZoomLayers(e);
+				}
+
+			}.bind(this));
+
+			// Do the first update
+			this.updateZoomLayers();
+		}
+	}
+
+	// Sets the visibility property on each zoom layer depending on the current scale. This a callback of the onMapZoomed event
+	updateZoomLayers(e?: EventArgs.MapZoomed) {
+		var zoomLayersChanged = false;
+
+		for (var i = 0; i < this.zoomLayers.length; i++) {
+			var layer = this.zoomLayers[i];
+			var visible = this.zoomScale >= layer.minZoom && this.zoomScale < layer.maxZoom;
+
+			// Layer visibility changed, show or hide the markers
+			if (layer.visible != visible) {
+				layer.visible = visible;
+				zoomLayersChanged = true;
+
+				// When hiding, always just remove
+				if (visible)
+					log("Zoom layer " + layer.id + " became visible (zoomScale is: " + this.zoomScale + ", which is >= " + layer.minZoom + " and < " + layer.maxZoom + ")");
+				else
+					log("Zoom layer " + layer.id + " is no longer visible (zoomScale is: " + this.zoomScale + ", which is " + (this.zoomScale < layer.minZoom ? "< " + layer.minZoom : ">= " + layer.maxZoom) + ")");
+			}
+		}
+
+		// Only update the filter if the zoom layers changed
+		// Don't do so via a zoom if we're currently searching,
+		// or if there aren't any markers to exclude to begin with (this can happen if the user doesn't define any markers)
+		if (zoomLayersChanged && !this.search.isSearching && !this.zoomLayersAllEmpty) {
+			this.updateFilter();
+		}
+	}
 
 	// Collectibles
 
@@ -2488,18 +2728,27 @@ class ExtendedMap {
 			this.hasCollectibles = true;
 
 			if (category.elements && category.elements.filter) {
+				// Ctrl-Clicking on the category filter should mark all as collected, or clear all as collected
 				category.elements.filter.addEventListener("click", function (this: ExtendedCategory, e: MouseEvent) {
 					if (e.ctrlKey == true || e.metaKey == true) {
-						if (this.isAnyCollected())
+						if (this.isAnyCollected()) {
 							this.clearAllCollected();
-						else
+						} else {
 							this.markAllCollected();
+						}
+						
+						this.map.updateFilter();
 
 						e.preventDefault();
 						e.stopPropagation();
 					}
 				}.bind(category));
 			}
+		}
+		
+		// Remove the built-in "your progress" foldout if it should be disabled, or if we have no collectibles
+		if (!this.config.enableYourProgressFilter || this.hasCollectibles == false) {
+			this.elements.filterProgressSection.remove();
 		}
 
 		// Skip this map if there are no collectibles
@@ -2508,34 +2757,41 @@ class ExtendedMap {
 		this.elements.filtersDropdownList.style.paddingBottom = "0";
 		this.elements.filtersDropdownList.style.maxHeight = "none";
 
-		// Add a "Clear collected" button to the filter box
-		var clearButton = document.createElement("a");
-		clearButton.className = "mapsExtended_collectibleClearButton";
-		clearButton.textContent = mapsExtended.i18n.msg("clear-collected-button").plain();
-		this.elements.clearCollectedButton = clearButton;
-		this.elements.filtersDropdownList.after(clearButton);
+		// Add a "Clear collected" button to the filters
+		if (this.config.enableClearCollectedButton) {
+			var clearButton = document.createElement("a");
+			clearButton.className = "mapsExtended_collectibleClearButton";
+			clearButton.textContent = mapsExtended.i18n.msg("clear-collected-button").plain();
+			this.elements.clearCollectedButton = clearButton;
 
-		// When BannerNotifications is loaded, 
-		mw.hook("dev.banners").add(function (banners) {
-			map.elements.collectedMessageBanner = new BannerNotification("", "confirm", null, 5000);
+			if (this.config.enableYourProgressFilter) {
+				this.elements.filterProgressSectionContent.append(clearButton);
+			} else {
+				this.elements.filterCategoriesSectionContent.append(clearButton);
+			}
 
-			// When the "Clear collected" button is clicked in the filters dropdown
-			map.elements.clearCollectedButton.addEventListener("click", function () {
-				var confirmMsg = mapsExtended.i18n.msg("clear-collected-confirm").plain();
+			// When BannerNotifications is loaded, 
+			mw.hook("dev.banners").add(function (banners) {
+				map.elements.collectedMessageBanner = new BannerNotification("", "confirm", null, 5000);
 
-				// Create a simple OOUI modal asking the user if they really want to clear the collected state on all markers
-				OO.ui.confirm(confirmMsg).done(function (confirmed) {
-					if (confirmed) {
-						var bannerMsg = mapsExtended.i18n.msg("clear-collected-banner", map.getNumCollected(), map.getMapLink(null, 'wikitext')).parse();
-						new BannerNotification(bannerMsg, "notify", null, 5000).show();
-						map.clearCollectedStates();
-					}
-					else
-						return;
+				// When the "Clear collected" button is clicked in the filters dropdown
+				map.elements.clearCollectedButton.addEventListener("click", function () {
+					var confirmMsg = mapsExtended.i18n.msg("clear-collected-confirm").plain();
+
+					// Create a simple OOUI modal asking the user if they really want to clear the collected state on all markers
+					OO.ui.confirm(confirmMsg).done(function (confirmed) {
+						if (confirmed) {
+							var bannerMsg = mapsExtended.i18n.msg("clear-collected-banner", map.getNumCollected(), map.getMapLink(null, 'wikitext')).parse();
+							new BannerNotification(bannerMsg, "notify", null, 5000).show();
+							map.clearCollectedStates();
+							map.updateFilter()
+						}
+						else return;
+					});
 				});
-			});
 
-		});
+			});
+		}
 
 		// Load collected states from localStorage
 		this.loadCollectedStates();
@@ -2546,13 +2802,13 @@ class ExtendedMap {
 		// Events
 
 		// Update all collected labels and nudge collected states when the map is refreshed
-		this.events.onMapInit.subscribe(function (args) {
+		this.events.onMapInit.subscribe(function (this: ExtendedMap, args) {
 			// Nudge collected states
-			args.map.nudgeCollectedStates();
+			this.nudgeCollectedStates();
 
 			// Update labels
-			args.map.categories.forEach(function (c) { c.updateCollectedLabel(); });
-		});
+			this.categories.forEach(function (c) { c.updateCollectedLabel(); });
+		}.bind(this));
 
 		// New marker shown - Set it's collected state to itself update the marker opacity
 		this.events.onMarkerShown.subscribe(function (args) {
@@ -2561,51 +2817,7 @@ class ExtendedMap {
 
 		// New popup created
 		this.events.onPopupCreated.subscribe(function (args) {
-			var marker = args.marker;
-			var map = args.map;
-			var category = map.categoryLookup.get(marker.categoryId);
-
-			// Stop observing popup changes while we change the subtree of the popup
-			map.togglePopupObserver(false);
-			
-			// Remove any old checkboxes (this can happen with live preview)
-			var oldCheckbox = marker.popup.elements.popupContentTopContainer.querySelector(".wds-checkbox");
-			if (oldCheckbox) oldCheckbox.remove();
-
-			// Check if the marker that triggered this popup is a collectible one
-			if (category.collectible == true) {
-				// Create checkbox container
-				var popupCollectedCheckbox = document.createElement("div");
-				popupCollectedCheckbox.className = "wds-checkbox";
-
-				// Create the checkbox itself
-				var popupCollectedCheckboxInput = document.createElement("input") as PopupCollectedCheckbox;
-				popupCollectedCheckboxInput.setAttribute("type", "checkbox");
-				popupCollectedCheckboxInput.id = "checkbox_" + map.id + "_" + marker.id;
-				popupCollectedCheckboxInput.marker = marker; // <- Store reference to marker on checkbox so we don't have to manually look it up
-				popupCollectedCheckboxInput.checked = marker.collected;
-				marker.popup.elements.popupCollectedCheckbox = popupCollectedCheckboxInput;
-
-				// Create label adjacent to checkbox
-				var popupCollectedCheckboxLabel = document.createElement("label");
-				popupCollectedCheckboxLabel.setAttribute("for", popupCollectedCheckboxInput.id);
-
-				// Add checkbox input and label to checkbox container
-				popupCollectedCheckbox.appendChild(popupCollectedCheckboxInput);
-				popupCollectedCheckbox.appendChild(popupCollectedCheckboxLabel);
-
-				// Add checkbox container after title element
-				marker.popup.elements.popupTitle.after(popupCollectedCheckbox);
-
-				// Checked changed event
-				popupCollectedCheckboxInput.addEventListener("change", function (e: Event & { currentTarget?: PopupCollectedCheckbox }) {
-					if (e.currentTarget.marker) {
-						e.currentTarget.marker.setMarkerCollected(e.currentTarget.checked, false, true, true);
-					}
-				});
-			}
-
-			map.togglePopupObserver(true);
+			args.popup.updateCollectibleElements();
 		});
 
 		// Marker clicked - Toggle collected state on control-click
@@ -2628,12 +2840,25 @@ class ExtendedMap {
 			});
 		});
 	}
+	
+	updateCollectedFilterLabels() {
+		// Number collected, subtract the counts for
+		var collected = this.getNumCollected(true, true);
+		var notCollected = this.getNumCollected(false, true);
+		
+		this.elements.filterCompleteLabel.textContent = collected.toString();
+		this.elements.filterIncompleteLabel.textContent = notCollected.toString();
+	}
 
 	// Get the amount of markers that have been collected in total
-	getNumCollected() {
+	getNumCollected(state?: boolean, excludeFiltered?: boolean) {
 		var count = 0;
+		
+		if (state == null) state = true;
+		if (excludeFiltered == null) excludeFiltered = false;
+		
 		for (var i = 0; i < this.categories.length; i++) {
-			count = count + this.categories[i].getNumCollected();
+			count += this.categories[i].getNumCollected(state, excludeFiltered);
 		}
 
 		return count;
@@ -2718,6 +2943,146 @@ class ExtendedMap {
 			mw.storage.setExpires(storageKey, this.config.collectibleExpiryTime);
 	}
 	
+	// General filtering
+	
+	collectedVisible?: boolean
+	nonCollectedVisible?: boolean
+	
+	initFilters() {
+		this.collectedVisible = true;
+		this.nonCollectedVisible = true;
+
+		this.createFilterSections();
+
+		// Add default filter functions, which determine how the markers are filtered when the filter is updated
+
+		// Only show visible categories
+		this.filterFunctions.push(function (m) { return m.category.visible; });
+
+		// When we have collectibles, only show the collectibles if the current "incomplete/complete" filter allows for its collected state
+		this.filterFunctions.push(function (m) { return m.map.hasCollectibles && m.category.collectible ? m.collected ? m.map.collectedVisible : m.map.nonCollectedVisible : true; })
+	}
+
+	createFilterSections() {
+		// Remove existing filter sections
+		var filterSections = this.elements.filtersDropdownList.querySelectorAll(".interactive-maps__section");
+		if (filterSections.length > 0) Array.from(filterSections).forEach(function (s) { s.remove(); });
+
+		var sectionHtml = "<div class=\"interactive-maps__section-label\"><!-- Section label --><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 12 12\" class=\"interactive-maps__section-label-icon\"><path fill-rule=\"evenodd\" d=\"M11.707 3.293a.999.999 0 00-1.414 0L6 7.586 1.707 3.293A.999.999 0 10.293 4.707l5 5a.997.997 0 001.414 0l5-5a.999.999 0 000-1.414\"></path></svg></div><div class=\"interactive-maps__section-content\"><!-- Section content --></div></div>";
+
+		// Create "Categories" section
+		this.elements.filterCategoriesSection = document.createElement("div");
+		this.elements.filterCategoriesSection.className = "interactive-maps__section interactive-maps__categories-section";
+		this.elements.filterCategoriesSection.innerHTML = sectionHtml;
+		this.elements.filterCategoriesSectionContent = this.elements.filterCategoriesSection.querySelector(".interactive-maps__section-content");
+		this.elements.filterCategoriesSectionLabel = this.elements.filterCategoriesSection.querySelector(".interactive-maps__section-label");
+		this.elements.filterCategoriesSectionLabel.prepend(mapsExtended.i18n.msg("filter-section-categories").plain());
+
+		// Create "Your Progress" section
+		this.elements.filterProgressSection = document.createElement("div");
+		this.elements.filterProgressSection.className = "interactive-maps__section interactive-maps__progress-section";
+		this.elements.filterProgressSection.innerHTML = sectionHtml;
+		this.elements.filterProgressSectionContent = this.elements.filterProgressSection.querySelector(".interactive-maps__section-content");
+		this.elements.filterProgressSectionLabel = this.elements.filterProgressSection.querySelector(".interactive-maps__section-label");
+		this.elements.filterProgressSectionLabel.prepend(mapsExtended.i18n.msg("filter-section-collectibles").plain());
+
+		// Create "incomplete" and "complete" filters (Fandom terminology)
+		var completeFilter = document.createElement("div");
+		var incompleteFilter = document.createElement("div");
+		var completeFilterText = document.createElement("span");
+		var incompleteFilterText = document.createElement("span");
+		var completeFilterCheckbox = createWdsCheckbox(this.id + "__checkbox-" + "complete", mapsExtended.i18n.msg("filter-collectibles-collected").plain());
+		var incompleteFilterCheckbox = createWdsCheckbox(this.id + "__checkbox-" + "incomplete", mapsExtended.i18n.msg("filter-collectibles-not-collected").plain());
+		completeFilter.className = "interactive-maps__filter";
+		incompleteFilter.className = "interactive-maps__filter";
+		completeFilterText.className = "interactive-maps__filter-value";
+		incompleteFilterText.className = "interactive-maps__filter-value";
+		completeFilter.append(completeFilterCheckbox.root, completeFilterText);
+		incompleteFilter.append(incompleteFilterCheckbox.root, incompleteFilterText);
+		this.elements.filterProgressSectionContent.append(completeFilter, incompleteFilter);
+
+		this.elements.filtersDropdownList.append(this.elements.filterProgressSection, this.elements.filterCategoriesSection);
+
+		// Save checkbox input references
+		this.elements.filterComplete = completeFilter;
+		this.elements.filterIncomplete = incompleteFilter;
+		this.elements.filterCompleteCheckbox = completeFilterCheckbox.input;
+		this.elements.filterIncompleteCheckbox = incompleteFilterCheckbox.input;
+		this.elements.filterCompleteLabel = completeFilter.querySelector(".interactive-maps__filter-value");
+		this.elements.filterIncompleteLabel = incompleteFilter.querySelector(".interactive-maps__filter-value");
+
+		this.elements.filterCompleteCheckbox.addEventListener("change", function (this: ExtendedMap, e) {
+			this.collectedVisible = e.target.checked;
+			this.updateFilter();
+
+		}.bind(this));
+
+		this.elements.filterIncompleteCheckbox.addEventListener("change", function (this: ExtendedMap, e) {
+			this.nonCollectedVisible = e.target.checked;
+			this.updateFilter();
+
+		}.bind(this));
+
+		// Set up filter groups (right now, "Your Progress" and "Collectibles")
+		var progressLabel = this.elements.filterProgressSection.querySelector(".interactive-maps__section-label");
+		var categoriesLabel = this.elements.filterCategoriesSection.querySelector(".interactive-maps__section-label");
+
+		var toggleSection = function (e) {
+			var section = e.target.closest(".interactive-maps__section");
+			section.classList.toggle("interactive-maps__section--hidden");
+		};
+		progressLabel.addEventListener("click", toggleSection);
+		categoriesLabel.addEventListener("click", toggleSection);
+	}
+
+	markersFiltered: ExtendedMarker[] = []
+	markersFilteredInverse: ExtendedMarker[] = []
+	
+	filteredMarkers: ExtendedMarker[] = []
+	unfilteredMarkers: ExtendedMarker[] = []
+
+	// This is an array of functions that take a marker, and should return true or false
+	// depending on whether they should be displayed on the map at any given time.
+	// A marker is only shown if every function returns true
+	filterFunctions = []
+
+	updateFilter() {
+		this.filteredMarkers = [];
+		this.unfilteredMarkers = [];
+
+		for (var i = 0; i < this.markers.length; i++) {
+			if (!this.markers[i].markerElement) continue;
+
+			// By default the marker is shown
+			if (this.markers[i].passesFilter()) {
+				this.filteredMarkers.push(this.markers[i]);
+			}
+			else {
+				this.unfilteredMarkers.push(this.markers[i]);
+			}
+		}
+
+		// Remove unfilteredMarkers
+		for (var i = 0; i < this.unfilteredMarkers.length; i++)
+			this.unfilteredMarkers[i].markerElement.remove();
+
+		// Add filteredMarkers (if they're not already present)
+		var fragment = document.createDocumentFragment();
+		for (var i = 0; i < this.filteredMarkers.length; i++) {
+			if (this.filteredMarkers[i].markerElement.parentElement == null)
+				fragment.append(this.filteredMarkers[i].markerElement);
+		}
+
+		this.elements.leafletMarkerPane.append(fragment);
+
+		// Hide the currently-showing popup if it belongs to a hidden marker
+		if (this.lastPopupShown && this.lastPopupShown.marker && !this.lastPopupShown.marker.passesFilter())
+			this.lastPopupShown.hide();
+
+		// Update the counts of the collectible filters
+		this.updateCollectedFilterLabels();
+	}
+	
 	// Saving category states
 	
 	/**
@@ -2736,7 +3101,6 @@ class ExtendedMap {
 
 
 	// Category groups
-
 
 	initCategoryGroupsStyles = once(function () {
 		// Change selectors that are rooted to interactive-maps__filters-dropdown to instead be rooted to interactive-maps__filters-list
@@ -2770,8 +3134,11 @@ class ExtendedMap {
 
 		// If there are no category groups, or if the object is not an array
 		// just map the categories directly so that all categories are at the root
-		if (!this.config.categoryGroups || !Array.isArray(this.config.categoryGroups))
-			this.config.categoryGroups = this.categories.map(function (c) { return c.id; });
+		if (!this.config.categoryGroups || !Array.isArray(this.config.categoryGroups)) {
+			this.config.categoryGroups = this.categories
+				.filter(function (c) { return !c.startDisabled; })
+				.map(function (c) { return c.id; });
+		}
 
 		// Move categoryGroups from config to this
 
@@ -2888,8 +3255,10 @@ class ExtendedMap {
 			});
 
 			// Update the checked visual state
-			rootGroup.updateCheckedVisualState();
+			// rootGroup.updateCheckedVisualState();
 		}
+		
+		rootGroup.updateCheckedVisualState()
 
 		// Resize the searchRoot to be a bit less than the height of the root map container
 		this.elements.filtersDropdownContent.style.maxHeight = (this.elements.rootElement.clientHeight - 35) + "px";
