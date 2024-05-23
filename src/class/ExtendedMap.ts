@@ -866,6 +866,9 @@ class ExtendedMap {
 
 			this.initMinimalLayout();
 
+			// Set up marker disambiguations
+			this.initMarkerDisambiguations();
+
 			// Create fullscreen button
 			this.initFullscreen();
 			
@@ -896,9 +899,6 @@ class ExtendedMap {
 
 			// Set up collectibles
 			this.initCollectibles();
-			
-			// Set up marker disambiguations
-			this.initMarkerDisambiguations();
 
 			// Set up zoom layers
 			this.initZoomLayers();
@@ -3304,19 +3304,22 @@ class ExtendedMap {
 		disambigContainer.addEventListener('click', function (this: ExtendedMap, event: MouseEvent & { target: HTMLElement }) {
 			var button = event.target.closest('button.mapsExtended_disambigChoice') as MarkerDisambigButton
 			if (button) {
+				this.lastMarkerClicked = button.marker
+				this.lastMarkerHovered = button.marker
 				button.marker.markerElement.click()
 				this.hideMarkerDisambiguation()
-				event.stopPropagation()
+				event.stopImmediatePropagation()
 				event.preventDefault()
 			}
 		}.bind(this))
 		
-		disambigContainer.addEventListener('mouseover', function (event: MouseEvent & { target: HTMLDivElement }) {
+		disambigContainer.addEventListener('mouseover', function (this: ExtendedMap, event: MouseEvent & { target: HTMLDivElement }) {
 			var button = event.target.closest('button.mapsExtended_disambigChoice') as MarkerDisambigButton
 			if (button) {
+				this.lastMarkerHovered = button.marker
 				button.marker.map.showTooltipForMarker(button.marker, true)
 			}
-		})
+		}.bind(this))
 
 		disambigContainer.addEventListener('mouseout', function (event: MouseEvent & { target: HTMLDivElement }) {
 			var button = event.target.closest('button.mapsExtended_disambigChoice') as MarkerDisambigButton
