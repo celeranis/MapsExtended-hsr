@@ -114,6 +114,11 @@ class ExtendedCategory {
 		// Fire events
 		this.map.events.onCategoryToggled.invoke({ map: this.map, category: this, value: value });
 		this.onCategoryToggled.invoke(value);
+		
+		if (this.map.initialized) {
+			// save category states
+			this.map.saveCategoryStates()
+		}
 	}
 	
 	toggle(value?: boolean) {
@@ -144,11 +149,6 @@ class ExtendedCategory {
 		this.elements.checkboxInput.addEventListener("change", function (this: ExtendedCategory, e: InputEvent & { target: HTMLInputElement }) {
 			this.visible = e.target.checked;
 			this.map.updateFilter();
-			
-			if (this.map.initialized) {
-				// save category states
-				this.map.saveCategoryStates()
-			}
 		}.bind(this));
 
 		// Hide categories that should start hidden (this is done *before* matching markers)
