@@ -51,6 +51,7 @@ class ExtendedCategory {
 		searchResultsHeaderCount: HTMLSpanElement
 		searchResultsHeaderText: HTMLSpanElement
 		searchResultsItemsList: HTMLDivElement
+		sidebarNumMarkers: HTMLSpanElement
 	}
 	
 	constructor(map: ExtendedMap, categoryJson: Fandom.CategoryData) {
@@ -253,6 +254,10 @@ class ExtendedCategory {
 		var msg = mapsExtended.i18n.msg("category-collected-label", count, total, perc).plain();
 
 		this.elements.collectedLabel.textContent = msg;
+		
+		if (this.elements.sidebarNumMarkers != null) {
+			this.elements.sidebarNumMarkers.innerHTML = count > 0 ? ('<b>' + count + '</b>/' + total) : total.toString()
+		}
 	}
 
 	clearAllCollected() { this.setAllCollected(false); }

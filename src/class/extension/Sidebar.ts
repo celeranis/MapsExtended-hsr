@@ -729,7 +729,13 @@ class SidebarCategoryGroup {
 			var category = categoryGroup.categories[i];
 
 			var categoryNumMarkers = document.createElement("span");
-			categoryNumMarkers.textContent = category.markers.length.toString();
+			
+			var collectedCount = category.getNumCollected()
+			var numContent = category.markers.length.toString();
+			if (collectedCount) {
+				numContent = '<b>' + collectedCount + '</b>/'
+			}
+			categoryNumMarkers.innerHTML = numContent;
 
 			var categoryListItem = document.createElement("div") as CategoryListItem;
 			categoryListItem.category = category;
@@ -738,6 +744,8 @@ class SidebarCategoryGroup {
 			categoryListItem.append(category.elements.categoryIcon.cloneNode(true),
 				category.elements.categoryLabel.cloneNode(true),
 				categoryNumMarkers);
+			
+			category.elements.sidebarNumMarkers = categoryNumMarkers
 
 			// Toggle specific category by clicking on item
 			categoryListItem.addEventListener("click", function (this: ExtendedCategory, e) {
