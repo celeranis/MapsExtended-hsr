@@ -1,63 +1,52 @@
-lockfileVersion: '9.0'
+lockfileVersion: '6.0'
 
 settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-importers:
-
-  .:
-    devDependencies:
-      '@types/oojs':
-        specifier: ^7.0.6
-        version: 7.0.6
-      '@types/oojs-ui':
-        specifier: ^0.49.0
-        version: 0.49.0
-      '@wikimedia/types-wikimedia':
-        specifier: ^0.4.2
-        version: 0.4.2
-      typescript:
-        specifier: ^5.4.3
-        version: 5.4.3
+devDependencies:
+  '@types/oojs':
+    specifier: ^7.0.6
+    version: 7.0.7
+  '@types/oojs-ui':
+    specifier: ^0.49.0
+    version: 0.49.1
+  '@wikimedia/types-wikimedia':
+    specifier: ^0.4.2
+    version: 0.4.4
+  typescript:
+    specifier: ^5.4.3
+    version: 5.6.3
 
 packages:
 
-  '@types/jquery@3.5.29':
-    resolution: {integrity: sha512-oXQQC9X9MOPRrMhPHHOsXqeQDnWeCDT3PelUIg/Oy8FAbzSZtFHRjc7IpbfFVmpLtJ+UOoywpRsuO5Jxjybyeg==}
+  /@types/jquery@3.5.32:
+    resolution: {integrity: sha512-b9Xbf4CkMqS02YH8zACqN1xzdxc3cO735Qe5AbSUFmyOiaWAbcpqh9Wna+Uk0vgACvoQHpWDg2rGdHkYPLmCiQ==}
+    dependencies:
+      '@types/sizzle': 2.3.9
+    dev: true
 
-  '@types/oojs-ui@0.49.0':
-    resolution: {integrity: sha512-y72xQs9PpSynfrv2XNfcGO7Gz09Eti7cj/SrH9J9ODAYEF0zmUrpjCwQvYEXkDpzrA1WJrpuPFN5BZVT5nhdKg==}
+  /@types/oojs-ui@0.49.1:
+    resolution: {integrity: sha512-FZgTXK3/2I5hT/wgIxN0wglXDrdBJHqjBkF1ti958+OSRbsSINTWLxFedxinz/GVndJMaNrIEDDWZvLA/TK+FQ==}
+    dependencies:
+      '@types/jquery': 3.5.32
+      '@types/oojs': 7.0.7
+    dev: true
 
-  '@types/oojs@7.0.6':
-    resolution: {integrity: sha512-e6UBEoqJ3bLBvxtPnaFmqkK4HzPwrS3sqfB2dORUmAaShp/T7WhMoYjlwhe+7g748qv7eeX/q4WdOaeeVG2LtA==}
+  /@types/oojs@7.0.7:
+    resolution: {integrity: sha512-l99Ab1s+EhCWR/38z5VI3aimTT9QZNjpd3JlJnECHXq6uJ/osLchkkhVfY7ANeOMVT978LawYO4JyOYPQO7VLQ==}
+    dev: true
 
-  '@types/sizzle@2.3.8':
-    resolution: {integrity: sha512-0vWLNK2D5MT9dg0iOo8GlKguPAU02QjmZitPEsXRuJXU/OGIOt9vT9Fc26wtYuavLxtO45v9PGleoL9Z0k1LHg==}
+  /@types/sizzle@2.3.9:
+    resolution: {integrity: sha512-xzLEyKB50yqCUPUJkIsrVvoWNfFUbIZI+RspLWt8u+tIW/BetMBZtgV2LY/2o+tYH8dRvQ+eoPf3NdhQCcLE2w==}
+    dev: true
 
-  '@wikimedia/types-wikimedia@0.4.2':
-    resolution: {integrity: sha512-MWZJE6JRUYRSuwajjiO4l7xz6530MUqdTOP0t0AteVm8Gqs+hUEcs5tTmAVJDg/ByvzyZ/M/KsW1UcuTRs0N8g==}
+  /@wikimedia/types-wikimedia@0.4.4:
+    resolution: {integrity: sha512-OQ5WZ02E1XKNNljhFMBfgYdsBmJGp7vCmZZR4ZofPOd4sobvfWCWpW87ezPSePwJkB5YScWLQWNSaAeVoiXW7A==}
+    dev: true
 
-  typescript@5.4.3:
-    resolution: {integrity: sha512-KrPd3PKaCLr78MalgiwJnA25Nm8HAmdwN3mYUYZgG/wizIo9EainNVQI9/yDavtVFRN2h3k8uf3GLHuhDMgEHg==}
+  /typescript@5.6.3:
+    resolution: {integrity: sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==}
     engines: {node: '>=14.17'}
     hasBin: true
-
-snapshots:
-
-  '@types/jquery@3.5.29':
-    dependencies:
-      '@types/sizzle': 2.3.8
-
-  '@types/oojs-ui@0.49.0':
-    dependencies:
-      '@types/jquery': 3.5.29
-      '@types/oojs': 7.0.6
-
-  '@types/oojs@7.0.6': {}
-
-  '@types/sizzle@2.3.8': {}
-
-  '@wikimedia/types-wikimedia@0.4.2': {}
-
-  typescript@5.4.3: {}
+    dev: true
