@@ -311,7 +311,7 @@ class ExtendedMarker implements Fandom.MarkerData {
 
 		// In addition, uniqueness on marker IDs aren't enforced, so this ID may be shared by multiple elements
 		if (marker instanceof Element && !marker.id) {
-			var svg = marker.querySelector("svg");
+			var svg = marker.querySelector("div.leaflet-marker-icon > svg");
 
 			// Cache the marker id
 			if (svg) marker.id = svg.getAttribute("data-testid").replace("default-marker-with-id-", "");
